@@ -3,25 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ລະບົບຄຸ້ມຄອງການປ່ອຍກູ້ (Realtime Firebase)</title>
+    <title>ລະບົບຄຸ້ມຄອງການປ່ອຍກູ້ ແລະ ກູ້ຢືມເງິນ (Google Sheets Connected)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- ໂຫຼດ Firebase SDK (v8 Compat) -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
     <style>
         body { font-family: 'Phetsarath OT', 'Noto Sans Lao', sans-serif; }
-        @page { size: A4 portrait; margin: 10mm 15mm 15mm 15mm; }
+        
+        @page {
+            size: A4 portrait;
+            margin: 10mm 15mm 15mm 15mm;
+        }
+
+        /* ປັບປຸງ CSS ສຳລັບການພິມ ແລະ ບັນທຶກ PDF ໃຫ້ເປ໊ະຕາມ A4 ເທິງສຸດ */
         @media print {
-            html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; width: 100% !important; overflow: visible !important; font-family: 'Phetsarath OT', 'Noto Sans Lao', sans-serif !important; }
-            header, nav, main, #modal-create-loan, #modal-payment, #modal-contact-details, #print-modal-header { display: none !important; }
-            #print-modal { position: static !important; inset: auto !important; background: transparent !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; display: block !important; }
-            #print-modal > div { padding: 0 !important; margin: 0 !important; background: transparent !important; border: none !important; overflow: visible !important; display: block !important; box-shadow: none !important; }
-            #print-section { font-family: 'Phetsarath OT', 'Noto Sans Lao', sans-serif !important; position: relative !important; top: 0 !important; left: 0 !important; width: 100% !important; margin: 0 !important; padding: 0 !important; font-size: 11pt !important; line-height: 1.5 !important; color: #000 !important; background: #fff !important; visibility: visible !important; }
-            #print-section * { visibility: visible !important; font-family: 'Phetsarath OT', 'Noto Sans Lao', sans-serif !important; }
+            html, body {
+                background: #fff !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+                font-family: 'Phetsarath OT', 'Noto Sans Lao', sans-serif !important;
+            }
+
+            /* ຊ່ອນອົງປະກອບອື່ນໆທັງໝົດ */
+            header, nav, main, #modal-create-loan, #modal-payment, #modal-contact-details, #print-modal-header {
+                display: none !important;
+            }
+
+            /* ປັບ Modal ໃຫ້ເປັນພື້ນທີ່ທຳມະດາ ບໍ່ໃຫ້ຕິດ Fixed ຫຼື Scroll */
+            #print-modal {
+                position: static !important;
+                inset: auto !important;
+                background: transparent !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                max-height: none !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+
+            #print-modal > div {
+                padding: 0 !important;
+                margin: 0 !important;
+                background: transparent !important;
+                border: none !important;
+                max-height: none !important;
+                overflow: visible !important;
+                display: block !important;
+                box-shadow: none !important;
+            }
+
+            /* ຈັດການພື້ນທີ່ເອກະສານໃຫ້ຢູ່ເທິງສຸດຂອງ A4 */
+            #print-section {
+                font-family: 'Phetsarath OT', 'Noto Sans Lao', sans-serif !important;
+                position: relative !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                max-width: none !important;
+                min-height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                font-size: 11pt !important;
+                line-height: 1.5 !important;
+                color: #000 !important;
+                background: #fff !important;
+                visibility: visible !important;
+            }
+
+            #print-section * {
+                visibility: visible !important;
+                font-family: 'Phetsarath OT', 'Noto Sans Lao', sans-serif !important;
+            }
+
+            .page-break {
+                page-break-before: always !important;
+                break-before: page !important;
+            }
         }
     </style>
 </head>
@@ -32,10 +94,10 @@
         <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center">
             <div class="flex items-center space-x-2">
                 <span class="text-2xl">⚖️</span>
-                <h1 class="text-lg font-bold">ລະບົບປ່ອຍກູ້ & ກູ້ຢືມ (Real-time Sync)</h1>
+                <h1 class="text-lg font-bold">ລະບົບປ່ອຍກູ້ & ກູ້ຢືມ (Google Sheets Sync)</h1>
             </div>
             <div class="flex items-center space-x-3">
-                <span id="sync-status" class="text-xs bg-emerald-600 px-2.5 py-1 rounded-full text-white font-bold">🟢 Realtime Connected</span>
+                <span id="sync-status" class="text-xs bg-indigo-800 px-2.5 py-1 rounded-full text-indigo-200">Local Only</span>
                 <div id="clock" class="text-xs bg-indigo-800 px-3 py-1 rounded-full text-indigo-100"></div>
             </div>
         </div>
@@ -53,60 +115,122 @@
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full space-y-6">
 
-        <!-- 1. DASHBOARD TAB -->
+        <!-- 1. OVERVIEW / DASHBOARD TAB -->
         <section id="tab-dashboard" class="space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                
+                <!-- 1. Red Card: ຢືມມາ -->
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col justify-between">
-                    <div class="bg-rose-600 text-white py-2.5 px-4 font-bold text-center text-sm">🔴 ຢືມມາ</div>
+                    <div class="bg-rose-600 text-white py-2.5 px-4 font-bold text-center flex items-center justify-center space-x-2 text-sm">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        <span>ຢືມມາ</span>
+                    </div>
                     <div class="p-5 space-y-2 text-xs text-slate-600">
-                        <div class="flex justify-between"><span>ຢືມມາທັງໝົດ:</span><strong id="stat-borrow-total" class="text-slate-800 text-sm">0 ກີບ</strong></div>
-                        <div class="flex justify-between"><span>ຈ່າຍແລ້ວ:</span><strong id="stat-borrow-principal-paid" class="text-emerald-600 font-bold">0 ກີບ</strong></div>
-                        <div class="flex justify-between"><span>ຍັງຄ້າງ:</span><strong id="stat-borrow-principal-rem" class="text-rose-600 font-bold">0 ກີບ</strong></div>
+                        <div class="flex justify-between">
+                            <span>ຢືມມາທັງໝົດ:</span>
+                            <strong id="stat-borrow-total" class="text-slate-800 text-sm">0 ກີບ</strong>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>ຈ່າຍແລ້ວ:</span>
+                            <strong id="stat-borrow-principal-paid" class="text-emerald-600 font-bold">0 ກີບ</strong>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>ຍັງຄ້າງ:</span>
+                            <strong id="stat-borrow-principal-rem" class="text-rose-600 font-bold">0 ກີບ</strong>
+                        </div>
+
                         <hr class="border-slate-200 my-2">
-                        <div class="flex justify-between"><span>ດອກເບ້ຍ:</span><strong id="stat-borrow-interest-total" class="text-slate-800 text-sm">0 ກີບ</strong></div>
-                        <div class="flex justify-between"><span>ຈ່າຍແລ້ວ:</span><strong id="stat-borrow-interest-paid" class="text-emerald-600 font-bold">0 ກີບ</strong></div>
-                        <div class="flex justify-between"><span>ຍັງຄ້າງ:</span><strong id="stat-borrow-interest-rem" class="text-rose-600 font-bold">0 ກີບ</strong></div>
+
+                        <div class="flex justify-between">
+                            <span>ດອກເບ້ຍ:</span>
+                            <strong id="stat-borrow-interest-total" class="text-slate-800 text-sm">0 ກີບ</strong>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>ຈ່າຍແລ້ວ:</span>
+                            <strong id="stat-borrow-interest-paid" class="text-emerald-600 font-bold">0 ກີບ</strong>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>ຍັງຄ້າງ:</span>
+                            <strong id="stat-borrow-interest-rem" class="text-rose-600 font-bold">0 ກີບ</strong>
+                        </div>
                     </div>
                 </div>
 
+                <!-- 2. Green Card: ປ່ອຍກູ້ -->
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col justify-between">
-                    <div class="bg-emerald-600 text-white py-2.5 px-4 font-bold text-center text-sm">🟢 ປ່ອຍກູ້</div>
+                    <div class="bg-emerald-600 text-white py-2.5 px-4 font-bold text-center flex items-center justify-center space-x-2 text-sm">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>ປ່ອຍກູ້</span>
+                    </div>
                     <div class="p-5 space-y-2 text-xs text-slate-600">
-                        <div class="flex justify-between"><span>ປ່ອຍກູ້ທັງໝົດ:</span><strong id="stat-lend-total" class="text-slate-800 text-sm">0 ກີບ</strong></div>
-                        <div class="flex justify-between"><span>ໄດ້ຮັບຄືນແລ້ວ:</span><strong id="stat-lend-principal-paid" class="text-emerald-600 font-bold">0 ກີບ</strong></div>
-                        <div class="flex justify-between"><span>ຍັງຄ້າງ:</span><strong id="stat-lend-principal-rem" class="text-rose-600 font-bold">0 ກີບ</strong></div>
+                        <div class="flex justify-between">
+                            <span>ປ່ອຍກູ້ທັງໝົດ:</span>
+                            <strong id="stat-lend-total" class="text-slate-800 text-sm">0 ກີບ</strong>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>ໄດ້ຮັບຄືນແລ້ວ:</span>
+                            <strong id="stat-lend-principal-paid" class="text-emerald-600 font-bold">0 ກີບ</strong>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>ຍັງຄ້າງ:</span>
+                            <strong id="stat-lend-principal-rem" class="text-rose-600 font-bold">0 ກີບ</strong>
+                        </div>
+
                         <hr class="border-slate-200 my-2">
-                        <div class="flex justify-between"><span>ດອກເບ້ຍ:</span><strong id="stat-lend-interest-total" class="text-slate-800 text-sm">0 ກີບ</strong></div>
-                        <div class="flex justify-between"><span>ຮັບແລ້ວ:</span><strong id="stat-lend-interest-paid" class="text-emerald-600 font-bold">0 ກີບ</strong></div>
-                        <div class="flex justify-between"><span>ຍັງຄ້າງ:</span><strong id="stat-lend-interest-rem" class="text-rose-600 font-bold">0 ກີບ</strong></div>
+
+                        <div class="flex justify-between">
+                            <span>ດອກເບ້ຍ:</span>
+                            <strong id="stat-lend-interest-total" class="text-slate-800 text-sm">0 ກີບ</strong>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>ຮັບແລ້ວ:</span>
+                            <strong id="stat-lend-interest-paid" class="text-emerald-600 font-bold">0 ກີບ</strong>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>ຍັງຄ້າງ:</span>
+                            <strong id="stat-lend-interest-rem" class="text-rose-600 font-bold">0 ກີບ</strong>
+                        </div>
                     </div>
                 </div>
 
+                <!-- 3. Blue Card: ຜົນດຳເນີນການ -->
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col justify-between">
-                    <div class="bg-indigo-600 text-white py-2.5 px-4 font-bold text-center text-sm">📊 ຜົນດຳເນີນການ</div>
+                    <div class="bg-indigo-600 text-white py-2.5 px-4 font-bold text-center flex items-center justify-center space-x-2 text-sm">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        <span>ຜົນດຳເນີນການ</span>
+                    </div>
                     <div class="p-5 space-y-3 text-xs text-slate-600 flex-grow flex flex-col justify-center">
                         <div class="p-3 bg-slate-50 border rounded-xl flex justify-between items-center">
-                            <span>ເງິນທີ່ຢືມມາຍັງເຫຼືອ:</span><strong id="stat-rem-borrowed" class="text-sm font-bold text-slate-800">0 ກີບ</strong>
+                            <span class="text-slate-600 font-semibold">ເງິນທີ່ຢືມມາຍັງເຫຼືອ:</span>
+                            <strong id="stat-rem-borrowed" class="text-sm font-bold text-slate-800">0 ກີບ</strong>
                         </div>
                         <div class="p-3 bg-slate-50 border rounded-xl flex justify-between items-center">
-                            <span>ຕອນນີ້:</span><strong id="stat-profit-loss" class="text-sm font-bold">0 ກີບ</strong>
+                            <span class="text-slate-600 font-semibold">ຕອນນີ້:</span>
+                            <strong id="stat-profit-loss" class="text-sm font-bold">0 ກີບ</strong>
                         </div>
                     </div>
                 </div>
+
             </div>
         </section>
 
-        <!-- 2. CONTACTS & CONTRACTS TAB -->
+        <!-- 2. MAIN HUB (CONTACTS & CONTRACTS INTEGRATED HUB) -->
         <section id="tab-customers" class="hidden space-y-6">
+            
+            <!-- UNIFIED CONTACTS CARD -->
             <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
                 <div class="p-4 border-b bg-slate-50 flex flex-wrap justify-between items-center gap-2">
                     <div class="flex items-center space-x-2">
                         <span class="font-bold text-slate-800 text-sm">👥 ລາຍຊື່ຄູ່ສັນຍາທັງໝົດ</span>
                         <span id="contact-count-badge" class="text-xs bg-indigo-100 text-indigo-700 font-bold px-2.5 py-0.5 rounded-full">0 ຄົນ</span>
                     </div>
-                    <button onclick="toggleContactForm()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition shadow-sm">➕ ເພີ່ມຂໍ້ມູນຄູ່ສັນຍາໃໝ່</button>
+                    <button onclick="toggleContactForm()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition shadow-sm flex items-center space-x-1">
+                        <span>➕</span>
+                        <span>ເພີ່ມຂໍ້ມູນຄູ່ສັນຍາໃໝ່</span>
+                    </button>
                 </div>
 
+                <!-- COLLAPSIBLE INPUT FORM FOR CONTACT -->
                 <div id="contact-form-container" class="hidden p-5 bg-sky-50/60 border-b space-y-3 transition">
                     <div class="flex justify-between items-center border-b pb-2">
                         <h3 id="form-contact-title" class="font-bold text-sky-900 text-sm">➕ ເພີ່ມຂໍ້ມູນຄູ່ສັນຍາໃໝ່</h3>
@@ -117,35 +241,64 @@
                             <div>
                                 <label class="font-semibold text-slate-600">ເພດ</label>
                                 <div class="flex space-x-4 mt-2">
-                                    <label class="flex items-center space-x-1 cursor-pointer"><input type="radio" name="c-gender" value="ຊາຍ" checked class="w-3.5 h-3.5 text-indigo-600"><span>👨 ຊາຍ (ທ່ານ)</span></label>
-                                    <label class="flex items-center space-x-1 cursor-pointer"><input type="radio" name="c-gender" value="ຍິງ" class="w-3.5 h-3.5 text-indigo-600"><span>👩 ຍິງ (ນາງ)</span></label>
+                                    <label class="flex items-center space-x-1 cursor-pointer">
+                                        <input type="radio" name="c-gender" value="ຊາຍ" checked class="w-3.5 h-3.5 text-indigo-600">
+                                        <span>👨 ຊາຍ (ທ່ານ)</span>
+                                    </label>
+                                    <label class="flex items-center space-x-1 cursor-pointer">
+                                        <input type="radio" name="c-gender" value="ຍິງ" class="w-3.5 h-3.5 text-indigo-600">
+                                        <span>👩 ຍິງ (ນາງ)</span>
+                                    </label>
                                 </div>
                             </div>
                             <div class="md:col-span-2">
                                 <label class="font-semibold text-slate-600">ຊື່ ແລະ ນາມສະກຸນ</label>
-                                <input type="text" id="c-name" required class="w-full mt-1 border rounded-lg px-3 py-2 bg-white">
+                                <input type="text" id="c-name" required class="w-full mt-1 border rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div>
+                                <label class="font-semibold text-slate-600">ອາຍຸ (ປີ)</label>
+                                <input type="number" inputmode="numeric" id="c-age" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white">
+                            </div>
+                            <div>
+                                <label class="font-semibold text-slate-600">ເລກບັດປະຈຳຕົວ</label>
+                                <input type="number" inputmode="numeric" id="c-idcard" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white">
                             </div>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <div><label class="font-semibold text-slate-600">ອາຍຸ (ປີ)</label><input type="number" id="c-age" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white"></div>
-                            <div><label class="font-semibold text-slate-600">ເລກບັດປະຈຳຕົວ</label><input type="number" id="c-idcard" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white"></div>
+                            <div>
+                                <label class="font-semibold text-slate-600">ເຮືອນເລກທີ</label>
+                                <input type="number" inputmode="numeric" id="c-houseno" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white">
+                            </div>
+                            <div>
+                                <label class="font-semibold text-slate-600">ບ້ານ</label>
+                                <input type="text" id="c-village" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white">
+                            </div>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <div><label class="font-semibold text-slate-600">ເຮືອນເລກທີ</label><input type="number" id="c-houseno" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white"></div>
-                            <div><label class="font-semibold text-slate-600">ບ້ານ</label><input type="text" id="c-village" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white"></div>
+                            <div>
+                                <label class="font-semibold text-slate-600">ເມືອງ</label>
+                                <input type="text" id="c-district" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white">
+                            </div>
+                            <div>
+                                <label class="font-semibold text-slate-600">ແຂວງ</label>
+                                <input type="text" id="c-province" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white">
+                            </div>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <div><label class="font-semibold text-slate-600">ເມືອງ</label><input type="text" id="c-district" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white"></div>
-                            <div><label class="font-semibold text-slate-600">ແຂວງ</label><input type="text" id="c-province" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white"></div>
+                        <div>
+                            <label class="font-semibold text-slate-600">ເບີໂທລະສັບ (WhatsApp)</label>
+                            <input type="number" inputmode="numeric" id="c-phone" placeholder="20xxxxxxxx" required class="w-full mt-1 border rounded-lg px-3 py-2 bg-white font-mono">
                         </div>
-                        <div><label class="font-semibold text-slate-600">ເບີໂທລະສັບ (WhatsApp)</label><input type="number" id="c-phone" placeholder="20xxxxxxxx" required class="w-full mt-1 border rounded-lg px-3 py-2 bg-white font-mono"></div>
                         <div class="flex space-x-2 pt-2">
-                            <button type="submit" id="btn-submit-contact" class="flex-1 bg-indigo-600 text-white font-bold py-2.5 rounded-lg hover:bg-indigo-700 shadow">💾 ບັນທຶກຂໍ້ມູນຄູ່ສັນຍາ</button>
-                            <button type="button" id="btn-cancel-edit" onclick="resetContactForm()" class="hidden bg-slate-200 text-slate-700 font-bold px-4 py-2.5 rounded-lg">ຍົກເລີກ</button>
+                            <button type="submit" id="btn-submit-contact" class="flex-1 bg-indigo-600 text-white font-bold py-2.5 rounded-lg hover:bg-indigo-700 transition shadow">💾 ບັນທຶກຂໍ້ມູນຄູ່ສັນຍາ</button>
+                            <button type="button" id="btn-cancel-edit" onclick="resetContactForm()" class="hidden bg-slate-200 text-slate-700 font-bold px-4 py-2.5 rounded-lg hover:bg-slate-300">ຍົກເລີກ</button>
                         </div>
                     </form>
                 </div>
 
+                <!-- CONTACTS LIST TABLE -->
                 <div class="overflow-x-auto max-h-[420px] overflow-y-auto">
                     <table class="w-full text-left text-sm border-collapse">
                         <thead class="bg-slate-100 text-slate-600 text-xs sticky top-0 z-10 shadow-sm">
@@ -161,9 +314,10 @@
                 </div>
             </div>
 
+            <!-- All Contracts Table (Sorted by Start/Creation Date) -->
             <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
                 <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
-                    <h2 class="font-bold text-slate-700 text-sm">📜 ລາຍການສັນຍາກູ້ຢືມທັງໝົດ</h2>
+                    <h2 class="font-bold text-slate-700 text-sm">📜 ລາຍການສັນຍາກູ້ຢືມທັງໝົດ (ປ່ອຍກູ້ & ກູ້ຢືມ)</h2>
                     <span id="contract-count" class="text-xs bg-indigo-100 text-indigo-700 font-semibold px-2.5 py-1 rounded-full">0 ສັນຍາ</span>
                 </div>
                 <div class="overflow-x-auto">
@@ -186,58 +340,124 @@
             </div>
         </section>
 
-        <!-- 3. PROFILE TAB -->
+        <!-- 3. USER PROFILE & GOOGLE SHEETS SETTINGS -->
         <section id="tab-profile" class="hidden space-y-6">
-            <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
-                <div class="flex flex-wrap justify-between items-center border-b pb-2 gap-2">
-                    <h3 class="font-bold text-slate-800 text-sm">📋 ຂໍ້ມູນສ່ວນຕົວ (ຝ່າຍເຮົາ)</h3>
-                    <button onclick="toggleMyProfileForm(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg">➕ ເພີ່ມຂໍ້ມູນສ່ວນຕົວ</button>
-                </div>
-                <div id="myprofile-form-container" class="hidden p-5 bg-sky-50/60 border rounded-xl space-y-3 my-3">
-                    <form id="myprofile-form" class="space-y-3 text-xs">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-                            <div>
-                                <label class="font-semibold text-slate-600">ເພດ</label>
-                                <div class="flex space-x-4 mt-1.5">
-                                    <label class="flex items-center space-x-1 cursor-pointer"><input type="radio" name="my-gender" value="ຊາຍ" checked class="w-3.5 h-3.5 text-indigo-600"><span>👨 ຊາຍ (ທ່ານ)</span></label>
-                                    <label class="flex items-center space-x-1 cursor-pointer"><input type="radio" name="my-gender" value="ຍິງ" class="w-3.5 h-3.5 text-indigo-600"><span>👩 ຍິງ (ນາງ)</span></label>
+            <div class="space-y-6">
+                <!-- System User Profiles Card -->
+                <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+                    <div class="flex flex-wrap justify-between items-center border-b pb-2 gap-2">
+                        <div class="flex items-center space-x-2">
+                            <h3 class="font-bold text-slate-800 text-sm">📋 ຂໍ້ມູນສ່ວນຕົວ</h3>
+                            <span class="text-xs text-slate-400">(ເລືອກໃສ່ສັນຍາໄດ້, ກົດ ⭐ ເພື່ອຕັ້ງເປັນຄ່າເລີ່ມຕົ້ນ)</span>
+                        </div>
+                        <button onclick="toggleMyProfileForm(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition shadow-sm flex items-center space-x-1">
+                            <span>➕</span>
+                            <span>ເພີ່ມຂໍ້ມູນສ່ວນຕົວ</span>
+                        </button>
+                    </div>
+
+                    <!-- Collapsible Profile Form -->
+                    <div id="myprofile-form-container" class="hidden p-5 bg-sky-50/60 border rounded-xl space-y-3 transition my-3">
+                        <div class="flex justify-between items-center border-b pb-2">
+                            <h3 id="form-myprofile-title" class="font-bold text-sky-900 text-sm">👤 ເພີ່ມຂໍ້ມູນສ່ວນຕົວ (ຝ່າຍເຮົາ)</h3>
+                            <button type="button" onclick="resetMyProfileForm()" class="text-xs text-slate-500 hover:text-rose-600 font-bold">✕ ປິດຟອມ</button>
+                        </div>
+                        <form id="myprofile-form" class="space-y-3 text-xs">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <div>
+                                    <label class="font-semibold text-slate-600">ເພດ</label>
+                                    <div class="flex space-x-4 mt-1.5">
+                                        <label class="flex items-center space-x-1 cursor-pointer">
+                                            <input type="radio" name="my-gender" value="ຊາຍ" checked class="w-3.5 h-3.5 text-indigo-600">
+                                            <span>👨 ຊາຍ (ທ່ານ)</span>
+                                        </label>
+                                        <label class="flex items-center space-x-1 cursor-pointer">
+                                            <input type="radio" name="my-gender" value="ຍິງ" class="w-3.5 h-3.5 text-indigo-600">
+                                            <span>👩 ຍິງ (ນາງ)</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="font-semibold text-slate-600">ຊື່ ແລະ ນາມສະກຸນ (ຝ່າຍເຮົາ)</label>
+                                    <input type="text" id="my-name" placeholder="ປ້ອນຊື່..." required class="w-full mt-1 border rounded-lg px-3 py-2 bg-white">
                                 </div>
                             </div>
-                            <div class="md:col-span-2"><label class="font-semibold text-slate-600">ຊື່ ແລະ ນາມສະກຸນ</label><input type="text" id="my-name" required class="w-full mt-1 border rounded-lg px-3 py-2 bg-white"></div>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-                            <div><label class="font-semibold text-slate-600">ອາຍຸ</label><input type="number" id="my-age" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white"></div>
-                            <div><label class="font-semibold text-slate-600">ເລກບັດປະຈຳຕົວ</label><input type="number" id="my-idcard" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white"></div>
-                            <div><label class="font-semibold text-slate-600">ອາຊີບ</label><input type="text" id="my-occupation" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white"></div>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <div><label class="font-semibold text-slate-600">ເຮືອນເລກທີ</label><input type="number" id="my-houseno" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white"></div>
-                            <div><label class="font-semibold text-slate-600">ຢູ່ບ້ານ</label><input type="text" id="my-village" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white"></div>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <div><label class="font-semibold text-slate-600">ເມືອງ</label><input type="text" id="my-district" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white"></div>
-                            <div><label class="font-semibold text-slate-600">ແຂວງ</label><input type="text" id="my-province" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white"></div>
-                        </div>
-                        <div><label class="font-semibold text-slate-600">ເບີໂທລະສັບ</label><input type="number" id="my-phone" required class="w-full mt-1 border rounded-lg px-3 py-2 bg-white font-mono"></div>
-                        <div class="flex space-x-2 pt-1">
-                            <button type="submit" id="btn-submit-myprofile" class="flex-1 bg-indigo-600 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-700">💾 ບັນທຶກຂໍ້ມູນຝ່າຍເຮົາ</button>
-                            <button type="button" id="btn-cancel-myprofile" onclick="resetMyProfileForm()" class="hidden bg-slate-200 text-slate-700 font-semibold px-4 py-2.5 rounded-lg">ຍົກເລີກ</button>
-                        </div>
-                    </form>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <div>
+                                    <label class="font-semibold text-slate-600">ອາຍຸ (ປີ)</label>
+                                    <input type="number" inputmode="numeric" id="my-age" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white">
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-slate-600">ເລກບັດປະຈຳຕົວ</label>
+                                    <input type="number" inputmode="numeric" id="my-idcard" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white">
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-slate-600">ອາຊີບ</label>
+                                    <input type="text" id="my-occupation" placeholder="ປ້ອນອາຊີບ..." class="w-full mt-1 border rounded-lg px-3 py-2 bg-white">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div>
+                                    <label class="font-semibold text-slate-600">ເຮືອນເລກທີ</label>
+                                    <input type="number" inputmode="numeric" id="my-houseno" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white">
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-slate-600">ຢູ່ບ້ານ</label>
+                                    <input type="text" id="my-village" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div>
+                                    <label class="font-semibold text-slate-600">ເມືອງ</label>
+                                    <input type="text" id="my-district" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white">
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-slate-600">ແຂວງ</label>
+                                    <input type="text" id="my-province" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="font-semibold text-slate-600">ເບີໂທລະສັບຕິດຕໍ່</label>
+                                <input type="number" inputmode="numeric" id="my-phone" required class="w-full mt-1 border rounded-lg px-3 py-2 bg-white font-mono">
+                            </div>
+                            <div class="flex space-x-2 pt-1">
+                                <button type="submit" id="btn-submit-myprofile" class="flex-1 bg-indigo-600 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-700 transition shadow">💾 ບັນທຶກຂໍ້ມູນຝ່າຍເຮົາ</button>
+                                <button type="button" id="btn-cancel-myprofile" onclick="resetMyProfileForm()" class="hidden bg-slate-200 text-slate-700 font-semibold px-4 py-2.5 rounded-lg hover:bg-slate-300">ຍົກເລີກ</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="my-profile-list" class="space-y-2 pt-2"></div>
                 </div>
-                <div id="my-profile-list" class="space-y-2 pt-2"></div>
+
+                <!-- Google Sheets Integration Card -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border space-y-3">
+                    <h3 class="font-bold text-slate-800 text-sm border-b pb-2">🟢 ຕັ້ງຄ່າການເຊື່ອມຕໍ່ Google Sheets</h3>
+                    <div class="space-y-3 text-xs">
+                        <div>
+                            <label class="font-semibold text-slate-700">Google Apps Script Web App URL:</label>
+                            <input type="url" id="gsheet-url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full mt-1 border rounded-lg p-2.5 font-mono text-xs">
+                        </div>
+                        <div class="flex flex-wrap gap-2 pt-1">
+                            <button type="button" onclick="saveGSheetUrl()" class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700">💾 ບັນທຶກ URL</button>
+                            <button type="button" onclick="syncFromGSheets()" class="bg-emerald-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700">🔄 ດຶງຂໍ້ມູນຈາກ Google Sheets</button>
+                            <button type="button" onclick="syncToGSheets()" class="bg-amber-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-amber-700">☁️ ສົ່ງຂໍ້ມູນໄປ Google Sheets</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
     </main>
 
-    <!-- MODAL: CREATE LOAN -->
+    <!-- MODAL 1: CREATE LOAN -->
     <div id="modal-create-loan" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50 overflow-y-auto">
         <div class="bg-white max-w-2xl w-full p-6 rounded-2xl shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b pb-3">
                 <h3 class="font-bold text-slate-800 text-base">📝 ສ້າງສັນຍາກູ້ຢືມເງິນໃໝ່</h3>
                 <button onclick="closeCreateLoanModal()" class="text-slate-400 font-bold text-lg">✕</button>
             </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border">
                 <label class="flex items-center space-x-2 cursor-pointer p-2 rounded-lg bg-white border">
                     <input type="radio" name="loan-type" value="LEND" checked class="w-4 h-4 text-indigo-600">
@@ -248,17 +468,40 @@
                     <span class="font-bold text-xs text-rose-600">🔴 ກູ້ຢືມຈາກຄົນອື່ນ (ເຮົາເປັນລູກໜີ້)</span>
                 </label>
             </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                <div><label class="font-semibold text-slate-700">ເລືອກຂໍ້ມູນຝ່າຍເຮົາ</label><select id="l-myprofile-select" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white font-semibold text-indigo-700"></select></div>
-                <div><label class="font-semibold text-slate-600">ເລືອກຄູ່ສັນຍາ</label><select id="l-contact-select" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white"></select></div>
-                <div><label class="font-semibold text-slate-600">ຈຳນວນເງິນກູ້ (ກີບ)</label><input type="number" id="l-amount" placeholder="0" class="w-full mt-1 border rounded-lg px-3 py-2 font-bold text-indigo-600"></div>
-                <div><label class="font-semibold text-slate-600">ຈຳນວນເງິນ (ຕົວໜັງສື)</label><input type="text" id="l-amount-text" class="w-full mt-1 border rounded-lg px-3 py-2 bg-slate-50"></div>
-                <div><label class="font-semibold text-slate-600">ດອກເບ້ຍ (% ຕໍ່ເດືອນ)</label><input type="number" id="l-interest" step="0.1" value="3.0" class="w-full mt-1 border rounded-lg px-3 py-2"></div>
-                <div><label class="font-semibold text-slate-600">ໄລຍະເວລາ (ເດືອນ)</label><input type="number" id="l-months" value="6" class="w-full mt-1 border rounded-lg px-3 py-2"></div>
-                <div><label class="font-semibold text-slate-600">ວັນທີເຮັດສັນຍາ</label><input type="date" id="l-start-date" class="w-full mt-1 border rounded-lg px-3 py-2"></div>
+                <div>
+                    <label class="font-semibold text-slate-700">ເລືອກຂໍ້ມູນຝ່າຍເຮົາ (ຜູ້ໃຊ້ລະບົບ)</label>
+                    <select id="l-myprofile-select" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white font-semibold text-indigo-700"></select>
+                </div>
+                <div>
+                    <label class="font-semibold text-slate-600">ເລືອກຄູ່ສັນຍາ</label>
+                    <select id="l-contact-select" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white"></select>
+                </div>
+                <div>
+                    <label class="font-semibold text-slate-600">ຈຳນວນເງິນກູ້ (ກີບ)</label>
+                    <input type="number" id="l-amount" placeholder="0" class="w-full mt-1 border rounded-lg px-3 py-2 font-bold text-indigo-600">
+                </div>
+                <div>
+                    <label class="font-semibold text-slate-600">ຈຳນວນເງິນ (ຕົວໜັງສື)</label>
+                    <input type="text" id="l-amount-text" placeholder="ແປງເປັນຕົວໜັງສືອັດຕະໂນມັດ..." class="w-full mt-1 border rounded-lg px-3 py-2 bg-slate-50">
+                </div>
+                <div>
+                    <label class="font-semibold text-slate-600">ດອກເບ້ຍ (% ຕໍ່ເດືອນ)</label>
+                    <input type="number" id="l-interest" step="0.1" value="3.0" class="w-full mt-1 border rounded-lg px-3 py-2">
+                </div>
+                <div>
+                    <label class="font-semibold text-slate-600">ໄລຍະເວລາ (ເດືອນ)</label>
+                    <input type="number" id="l-months" value="6" class="w-full mt-1 border rounded-lg px-3 py-2">
+                </div>
+                <div>
+                    <label class="font-semibold text-slate-600">ວັນທີເຮັດສັນຍາ</label>
+                    <input type="date" id="l-start-date" class="w-full mt-1 border rounded-lg px-3 py-2">
+                </div>
+                <!-- Checkbox for Prepaid Interest -->
                 <div class="flex items-end pb-1">
                     <label class="flex items-center space-x-2 cursor-pointer bg-amber-50 p-2 rounded-lg border border-amber-200 w-full">
-                        <input type="checkbox" id="l-interest-prepaid" class="w-4 h-4 text-amber-600 rounded">
+                        <input type="checkbox" id="l-interest-prepaid" class="w-4 h-4 text-amber-600 rounded focus:ring-amber-500">
                         <span class="font-bold text-xs text-amber-900">ຈ່າຍດອກເບ້ຍລ່ວງໜ້າແລ້ວ</span>
                     </label>
                 </div>
@@ -267,73 +510,191 @@
             <div class="border-t pt-3 space-y-2">
                 <h4 class="font-bold text-xs text-slate-700">ຂໍ້ມູນປະກອບສັນຍາກົດໝາຍ</h4>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-                    <div><label class="text-slate-600 font-semibold">ຊື່ຜູ້ຄ້ຳປະກັນ (ຖ້າມີ)</label><input type="text" id="l-guarantor-name" class="w-full mt-1 border rounded-lg px-3 py-1.5"></div>
-                    <div class="md:col-span-2"><label class="text-slate-600 font-semibold">ເບີໂທ/ບັດປະຈຳຕົວ ຜູ້ຄ້ຳ</label><input type="text" id="l-guarantor-info" class="w-full mt-1 border rounded-lg px-3 py-1.5"></div>
+                    <div>
+                        <label class="text-slate-600 font-semibold">ຊື່ຜູ້ຄ້ຳປະກັນ (ຖ້າມີ)</label>
+                        <input type="text" id="l-guarantor-name" placeholder="ຖ້າບໍ່ມີໃຫ້ປ່ອງວ່າງໄວ້" class="w-full mt-1 border rounded-lg px-3 py-1.5">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-slate-600 font-semibold">ເບີໂທ/ບັດປະຈຳຕົວ ຜູ້ຄ້ຳ</label>
+                        <input type="text" id="l-guarantor-info" class="w-full mt-1 border rounded-lg px-3 py-1.5">
+                    </div>
                     
+                    <!-- ຫຼັກຊັບຄ້ຳປະກັນ (Dynamic Sub-forms) -->
                     <div class="md:col-span-3 space-y-2">
-                        <label class="text-slate-600 font-semibold">ຫຼັກຊັບຄ້ຳປະກັນ:</label>
+                        <label class="text-slate-600 font-semibold">ຫຼັກຊັບຄ້ຳປະກັນ (ຕິກເລືອກປະເພດເພື່ອປ້ອນຂໍ້ມູນ):</label>
                         <div class="flex flex-wrap gap-4 bg-slate-50 p-2.5 border rounded-lg">
-                            <label class="flex items-center space-x-1.5 cursor-pointer"><input type="checkbox" id="chk-collateral-land" onchange="toggleCollateralFields()"><span class="font-bold text-slate-700">📜 ໃບຕາດິນ</span></label>
-                            <label class="flex items-center space-x-1.5 cursor-pointer"><input type="checkbox" id="chk-collateral-vehicle" onchange="toggleCollateralFields()"><span class="font-bold text-slate-700">🚗 ໃບທະບຽນລົດ</span></label>
-                            <label class="flex items-center space-x-1.5 cursor-pointer"><input type="checkbox" id="chk-collateral-gold" onchange="toggleCollateralFields()"><span class="font-bold text-slate-700">🪙 ຄຳ</span></label>
-                            <label class="flex items-center space-x-1.5 cursor-pointer"><input type="checkbox" id="chk-collateral-other" onchange="toggleCollateralFields()"><span class="font-bold text-slate-700">📦 ອື່ນໆ</span></label>
+                            <label class="flex items-center space-x-1.5 cursor-pointer">
+                                <input type="checkbox" id="chk-collateral-land" onchange="toggleCollateralFields()" class="w-4 h-4 text-indigo-600 rounded">
+                                <span class="font-bold text-slate-700">📜 ໃບຕາດິນ</span>
+                            </label>
+                            <label class="flex items-center space-x-1.5 cursor-pointer">
+                                <input type="checkbox" id="chk-collateral-vehicle" onchange="toggleCollateralFields()" class="w-4 h-4 text-indigo-600 rounded">
+                                <span class="font-bold text-slate-700">🚗 ໃບທະບຽນລົດ</span>
+                            </label>
+                            <label class="flex items-center space-x-1.5 cursor-pointer">
+                                <input type="checkbox" id="chk-collateral-gold" onchange="toggleCollateralFields()" class="w-4 h-4 text-indigo-600 rounded">
+                                <span class="font-bold text-slate-700">🪙 ຄຳ</span>
+                            </label>
+                            <label class="flex items-center space-x-1.5 cursor-pointer">
+                                <input type="checkbox" id="chk-collateral-other" onchange="toggleCollateralFields()" class="w-4 h-4 text-indigo-600 rounded">
+                                <span class="font-bold text-slate-700">📦 ອື່ນໆ</span>
+                            </label>
                         </div>
 
-                        <div id="form-collateral-land" class="hidden p-3 bg-indigo-50/60 border rounded-xl space-y-2 text-xs">
-                            <p class="font-bold text-indigo-900 border-b pb-1">📍 ລາຍລະອຽດໃບຕາດິນ</p>
+                        <!-- 1. ຟອມໃບຕາດິນ -->
+                        <div id="form-collateral-land" class="hidden p-3 bg-indigo-50/60 border border-indigo-200 rounded-xl space-y-2 text-xs">
+                            <p class="font-bold text-indigo-900 border-b border-indigo-200 pb-1">📍 ລາຍລະອຽດໃບຕາດິນ</p>
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-                                <input type="text" id="land-no" placeholder="ເລກທີ..." class="border rounded px-2 py-1 bg-white">
-                                <input type="text" id="land-village" placeholder="ບ້ານ..." class="border rounded px-2 py-1 bg-white">
-                                <input type="text" id="land-district" placeholder="ເມືອງ..." class="border rounded px-2 py-1 bg-white">
-                                <input type="text" id="land-province" placeholder="ແຂວງ..." class="border rounded px-2 py-1 bg-white">
+                                <div>
+                                    <label class="text-slate-600">ເລກທີໃບຕາດິນ</label>
+                                    <input type="text" id="land-no" placeholder="ເລກທີ..." class="w-full mt-0.5 border rounded px-2 py-1 bg-white">
+                                </div>
+                                <div>
+                                    <label class="text-slate-600">ຕັ້ງຢູ່ບ້ານ</label>
+                                    <input type="text" id="land-village" placeholder="ບ້ານ..." class="w-full mt-0.5 border rounded px-2 py-1 bg-white">
+                                </div>
+                                <div>
+                                    <label class="text-slate-600">ເມືອງ</label>
+                                    <input type="text" id="land-district" placeholder="ເມືອງ..." class="w-full mt-0.5 border rounded px-2 py-1 bg-white">
+                                </div>
+                                <div>
+                                    <label class="text-slate-600">ແຂວງ</label>
+                                    <input type="text" id="land-province" placeholder="ແຂວງ..." class="w-full mt-0.5 border rounded px-2 py-1 bg-white">
+                                </div>
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                <div class="flex space-x-1"><input type="text" id="land-north-border" placeholder="ທິດເໜືອຕິດກັບ..." class="flex-1 border rounded px-2 py-1"><input type="number" id="land-north-size" placeholder="ຕາແມັດ" class="w-24 border rounded px-2 py-1"></div>
-                                <div class="flex space-x-1"><input type="text" id="land-south-border" placeholder="ທິດໃຕ້ຕິດກັບ..." class="flex-1 border rounded px-2 py-1"><input type="number" id="land-south-size" placeholder="ຕາແມັດ" class="w-24 border rounded px-2 py-1"></div>
-                                <div class="flex space-x-1"><input type="text" id="land-east-border" placeholder="ທິດຕາເວັນອອກຕິດກັບ..." class="flex-1 border rounded px-2 py-1"><input type="number" id="land-east-size" placeholder="ຕາແມັດ" class="w-24 border rounded px-2 py-1"></div>
-                                <div class="flex space-x-1"><input type="text" id="land-west-border" placeholder="ທິດຕາເວັນຕົກຕິດກັບ..." class="flex-1 border rounded px-2 py-1"><input type="number" id="land-west-size" placeholder="ຕາແມັດ" class="w-24 border rounded px-2 py-1"></div>
+                                <div class="flex space-x-1">
+                                    <input type="text" id="land-north-border" placeholder="ທິດເໜືອຕິດກັບ..." class="flex-1 border rounded px-2 py-1 bg-white">
+                                    <input type="number" id="land-north-size" placeholder="ມີ...ຕາແມັດ" class="w-28 border rounded px-2 py-1 bg-white">
+                                </div>
+                                <div class="flex space-x-1">
+                                    <input type="text" id="land-south-border" placeholder="ທິດໃຕ້ຕິດກັບ..." class="flex-1 border rounded px-2 py-1 bg-white">
+                                    <input type="number" id="land-south-size" placeholder="ມີ...ຕາແມັດ" class="w-28 border rounded px-2 py-1 bg-white">
+                                </div>
+                                <div class="flex space-x-1">
+                                    <input type="text" id="land-east-border" placeholder="ທິດຕາເວັນອອກຕິດກັບ..." class="flex-1 border rounded px-2 py-1 bg-white">
+                                    <input type="number" id="land-east-size" placeholder="ມີ...ຕາແມັດ" class="w-28 border rounded px-2 py-1 bg-white">
+                                </div>
+                                <div class="flex space-x-1">
+                                    <input type="text" id="land-west-border" placeholder="ທິດຕາເວັນຕົກຕິດກັບ..." class="flex-1 border rounded px-2 py-1 bg-white">
+                                    <input type="number" id="land-west-size" placeholder="ມີ...ຕາແມັດ" class="w-28 border rounded px-2 py-1 bg-white">
+                                </div>
                             </div>
-                            <div><input type="number" id="land-total-size" placeholder="ລວມເນື້ອທີ່ທັງໝົດ (ຕາແມັດ)" class="w-full md:w-1/2 border rounded px-2 py-1 font-bold text-indigo-700"></div>
+                            <div>
+                                <label class="text-slate-600 font-semibold">ລວມເນື້ອທີ່ທັງໝົດ (ຕາແມັດ)</label>
+                                <input type="number" id="land-total-size" placeholder="...ຕາແມັດ" class="w-full md:w-1/2 mt-0.5 border rounded px-2 py-1 bg-white font-bold text-indigo-700">
+                            </div>
                         </div>
 
-                        <div id="form-collateral-vehicle" class="hidden p-3 bg-amber-50/60 border rounded-xl space-y-2 text-xs">
-                            <p class="font-bold text-amber-900 border-b pb-1">🚘 ລາຍລະອຽດໃບທະບຽນລົດ</p>
+                        <!-- 2. ຟອມໃບທະບຽນລົດ -->
+                        <div id="form-collateral-vehicle" class="hidden p-3 bg-amber-50/60 border border-amber-200 rounded-xl space-y-2 text-xs">
+                            <p class="font-bold text-amber-900 border-b border-amber-200 pb-1">🚘 ລາຍລະອຽດໃບທະບຽນລົດ</p>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                <input type="text" id="veh-brand" placeholder="ຍີ່ຫໍ້ລົດ..." class="border rounded px-2 py-1">
-                                <input type="text" id="veh-plate" placeholder="ທະບຽນ..." class="border rounded px-2 py-1">
-                                <input type="text" id="veh-engine" placeholder="ເລກຈັກ..." class="border rounded px-2 py-1">
-                                <input type="text" id="veh-chassis" placeholder="ເລກຖັງ..." class="border rounded px-2 py-1">
-                                <input type="text" id="veh-color" placeholder="ສີ..." class="border rounded px-2 py-1">
-                                <input type="text" id="veh-doc-no" placeholder="ເລກທີໃບທະບຽນ..." class="border rounded px-2 py-1">
+                                <div>
+                                    <label class="text-slate-600">ຍີ່ຫໍ້ລົດ</label>
+                                    <input type="text" id="veh-brand" placeholder="ເຊັ່ນ: Toyota, Honda..." class="w-full mt-0.5 border rounded px-2 py-1 bg-white">
+                                </div>
+                                <div>
+                                    <label class="text-slate-600">ໝາຍເລກທະບຽນ</label>
+                                    <input type="text" id="veh-plate" placeholder="ເຊັ່ນ: ກກ 9999..." class="w-full mt-0.5 border rounded px-2 py-1 bg-white">
+                                </div>
+                                <div>
+                                    <label class="text-slate-600">ເລກຈັກ</label>
+                                    <input type="text" id="veh-engine" placeholder="ເລກຈັກ..." class="w-full mt-0.5 border rounded px-2 py-1 bg-white">
+                                </div>
+                                <div>
+                                    <label class="text-slate-600">ເລກຖັງ</label>
+                                    <input type="text" id="veh-chassis" placeholder="ເລກຖັງ..." class="w-full mt-0.5 border rounded px-2 py-1 bg-white">
+                                </div>
+                                <div>
+                                    <label class="text-slate-600">ສີລົດ</label>
+                                    <input type="text" id="veh-color" placeholder="ສີ..." class="w-full mt-0.5 border rounded px-2 py-1 bg-white">
+                                </div>
+                                <div>
+                                    <label class="text-slate-600">ເລກທີໃບທະບຽນລົດ</label>
+                                    <input type="text" id="veh-doc-no" placeholder="ເລກທີໃບທະບຽນ..." class="w-full mt-0.5 border rounded px-2 py-1 bg-white">
+                                </div>
                             </div>
                         </div>
 
-                        <div id="form-collateral-gold" class="hidden p-3 bg-yellow-50/60 border rounded-xl space-y-2 text-xs">
-                            <p class="font-bold text-yellow-900 border-b pb-1">✨ ລາຍລະອຽດຄຳ</p>
+                        <!-- 3. ຟອມຄຳ -->
+                        <div id="form-collateral-gold" class="hidden p-3 bg-yellow-50/60 border border-yellow-200 rounded-xl space-y-2 text-xs">
+                            <p class="font-bold text-yellow-900 border-b border-yellow-200 pb-1">✨ ລາຍລະອຽດຄຳ</p>
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-                                <select id="gold-type" class="border rounded px-2 py-1"><option value="ຄຳຮູບປະພັນ">ຄຳຮູບປະພັນ</option><option value="ຄຳແທ່ງ">ຄຳແທ່ງ</option></select>
-                                <input type="text" id="gold-weight" placeholder="ນ້ຳໜັກ..." class="border rounded px-2 py-1">
-                                <input type="text" id="gold-purity" placeholder="ເປີເຊັນຄຳ..." class="border rounded px-2 py-1">
-                                <input type="text" id="gold-style" placeholder="ລັກສະນະ..." class="border rounded px-2 py-1">
+                                <div>
+                                    <label class="text-slate-600">ປະເພດຄຳ</label>
+                                    <select id="gold-type" class="w-full mt-0.5 border rounded px-2 py-1 bg-white font-semibold">
+                                        <option value="ຄຳຮູບປະພັນ">ຄຳຮູບປະພັນ</option>
+                                        <option value="ຄຳແທ່ງ">ຄຳແທ່ງ</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-slate-600">ນ້ຳໜັກ (ກຣາມ/ບາດ/ສະລຶງ)</label>
+                                    <input type="text" id="gold-weight" placeholder="ເຊັ່ນ: 2 ບາດ / 15 ກຣາມ" class="w-full mt-0.5 border rounded px-2 py-1 bg-white">
+                                </div>
+                                <div>
+                                    <label class="text-slate-600">ເປີເຊັນຄຳ</label>
+                                    <input type="text" id="gold-purity" placeholder="ເຊັ່ນ: 99.99% / 96.5%" class="w-full mt-0.5 border rounded px-2 py-1 bg-white">
+                                </div>
+                                <div>
+                                    <label class="text-slate-600">ລັກສະນະ</label>
+                                    <input type="text" id="gold-style" placeholder="ເຊັ່ນ: ສ້ອຍຄໍ, ແຫວນ, ແຂນ" class="w-full mt-0.5 border rounded px-2 py-1 bg-white">
+                                </div>
                             </div>
                         </div>
 
-                        <div id="form-collateral-other" class="hidden p-3 bg-slate-50 border rounded-xl space-y-2 text-xs">
-                            <textarea id="other-collateral-desc" rows="2" placeholder="ລາຍລະອຽດຫຼັກຊັບອື່ນໆ..." class="w-full border rounded p-2 text-xs"></textarea>
+                        <!-- 4. ຟອມອື່ນໆ -->
+                        <div id="form-collateral-other" class="hidden p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                            <p class="font-bold text-slate-800 border-b pb-1">📦 ລາຍລະອຽດຫຼັກຊັບຄ້ຳປະກັນອື່ນໆ</p>
+                            <div>
+                                <textarea id="other-collateral-desc" rows="2" placeholder="ປ້ອນລາຍລະອຽດຫຼັກຊັບຄ້ຳປະກັນອື່ນໆ..." class="w-full border rounded p-2 bg-white text-xs"></textarea>
+                            </div>
                         </div>
                     </div>
 
                     <div class="md:col-span-3 space-y-2">
-                        <label class="text-slate-600 font-semibold">ຂໍ້ມູນພະຍານ:</label>
+                        <label class="text-slate-600 font-semibold">ຂໍ້ມູນພະຍານ (ຊື່, ບ້ານ, ເບີໂທ):</label>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-2 bg-slate-50 p-2.5 border rounded-lg">
-                            <input type="text" id="l-witness1" placeholder="ຊື່ພະຍານ 1..." class="border rounded px-2 py-1">
-                            <input type="text" id="l-witness1-village" placeholder="ບ້ານ..." class="border rounded px-2 py-1">
-                            <input type="text" id="l-witness1-phone" placeholder="ເບີໂທ..." class="border rounded px-2 py-1">
+                            <div>
+                                <label class="text-slate-500 text-[11px]">ຊື່ພະຍານ 1</label>
+                                <input type="text" id="l-witness1" placeholder="ຊື່ ແລະ ນາມສະກຸນ..." class="w-full border rounded px-2 py-1 bg-white">
+                            </div>
+                            <div>
+                                <label class="text-slate-500 text-[11px]">ບ້ານຢູ່ ພະຍານ 1</label>
+                                <input type="text" id="l-witness1-village" placeholder="ບ້ານ..." class="w-full border rounded px-2 py-1 bg-white">
+                            </div>
+                            <div>
+                                <label class="text-slate-500 text-[11px]">ເບີໂທ ພະຍານ 1</label>
+                                <input type="text" id="l-witness1-phone" placeholder="ເບີໂທ..." class="w-full border rounded px-2 py-1 bg-white">
+                            </div>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-2 bg-slate-50 p-2.5 border rounded-lg">
-                            <input type="text" id="l-witness2" placeholder="ຊື່ພະຍານ 2..." class="border rounded px-2 py-1">
-                            <input type="text" id="l-witness2-village" placeholder="ບ້ານ..." class="border rounded px-2 py-1">
-                            <input type="text" id="l-witness2-phone" placeholder="ເບີໂທ..." class="border rounded px-2 py-1">
+                            <div>
+                                <label class="text-slate-500 text-[11px]">ຊື່ພະຍານ 2</label>
+                                <input type="text" id="l-witness2" placeholder="ຊື່ ແລະ ນາມສະກຸນ..." class="w-full border rounded px-2 py-1 bg-white">
+                            </div>
+                            <div>
+                                <label class="text-slate-500 text-[11px]">ບ້ານຢູ່ ພະຍານ 2</label>
+                                <input type="text" id="l-witness2-village" placeholder="ບ້ານ..." class="w-full border rounded px-2 py-1 bg-white">
+                            </div>
+                            <div>
+                                <label class="text-slate-500 text-[11px]">ເບີໂທ ພະຍານ 2</label>
+                                <input type="text" id="l-witness2-phone" placeholder="ເບີໂທ..." class="w-full border rounded px-2 py-1 bg-white">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 bg-slate-50 p-2.5 border rounded-lg">
+                            <div>
+                                <label class="text-slate-500 text-[11px]">ຊື່ພະຍານ 3</label>
+                                <input type="text" id="l-witness3" placeholder="ຊື່ ແລະ ນາມສະກຸນ..." class="w-full border rounded px-2 py-1 bg-white">
+                            </div>
+                            <div>
+                                <label class="text-slate-500 text-[11px]">ບ້ານຢູ່ ພະຍານ 3</label>
+                                <input type="text" id="l-witness3-village" placeholder="ບ້ານ..." class="w-full border rounded px-2 py-1 bg-white">
+                            </div>
+                            <div>
+                                <label class="text-slate-500 text-[11px]">ເບີໂທ ພະຍານ 3</label>
+                                <input type="text" id="l-witness3-phone" placeholder="ເບີໂທ..." class="w-full border rounded px-2 py-1 bg-white">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -346,7 +707,7 @@
         </div>
     </div>
 
-    <!-- MODAL: PAYMENT -->
+    <!-- MODAL 2: PAYMENT (SPLIT INTEREST & PRINCIPAL) -->
     <div id="modal-payment" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50">
         <div class="bg-white max-w-md w-full p-6 rounded-2xl shadow-2xl relative space-y-4">
             <div class="flex justify-between items-center border-b pb-3">
@@ -354,11 +715,23 @@
                 <button onclick="closePaymentModal()" class="text-slate-400 font-bold text-lg">✕</button>
             </div>
             <div class="space-y-3 text-xs">
-                <div><label class="font-semibold text-slate-600">ເລືອກສັນຍາກູ້ຢືມ</label><select id="p-loan-select" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white font-semibold text-slate-700"></select></div>
-                <div><label class="font-semibold text-slate-600">ວັນທີຊຳລະ</label><input type="date" id="p-date" class="w-full mt-1 border rounded-lg px-3 py-2"></div>
+                <div>
+                    <label class="font-semibold text-slate-600">ເລືອກສັນຍາກູ້ຢືມ</label>
+                    <select id="p-loan-select" class="w-full mt-1 border rounded-lg px-3 py-2 bg-white font-semibold text-slate-700"></select>
+                </div>
+                <div>
+                    <label class="font-semibold text-slate-600">ວັນທີຊຳລະ</label>
+                    <input type="date" id="p-date" class="w-full mt-1 border rounded-lg px-3 py-2">
+                </div>
                 <div class="p-3 bg-slate-50 border rounded-xl space-y-3">
-                    <div><label class="font-semibold text-amber-800">1. ຈຳນວນເງິນຊຳລະດອກເບ້ຍ (ກີບ)</label><input type="number" id="p-interest-amount" placeholder="0" class="w-full mt-1 border rounded-lg px-3 py-2 font-bold text-amber-600 text-sm bg-white"></div>
-                    <div><label class="font-semibold text-emerald-800">2. ຈຳນວນເງິນຊຳລະເງິນຕົ້ນ (ກີບ)</label><input type="number" id="p-principal-amount" placeholder="0" class="w-full mt-1 border rounded-lg px-3 py-2 font-bold text-emerald-600 text-sm bg-white"></div>
+                    <div>
+                        <label class="font-semibold text-amber-800">1. ຈຳນວນເງິນຊຳລະດອກເບ້ຍ (ກີບ)</label>
+                        <input type="number" id="p-interest-amount" placeholder="0" class="w-full mt-1 border rounded-lg px-3 py-2 font-bold text-amber-600 text-sm bg-white">
+                    </div>
+                    <div>
+                        <label class="font-semibold text-emerald-800">2. ຈຳນວນເງິນຊຳລະເງິນຕົ້ນ (ກີບ)</label>
+                        <input type="number" id="p-principal-amount" placeholder="0" class="w-full mt-1 border rounded-lg px-3 py-2 font-bold text-emerald-600 text-sm bg-white">
+                    </div>
                 </div>
             </div>
             <div class="pt-2 flex justify-end space-x-2">
@@ -368,16 +741,18 @@
         </div>
     </div>
 
-    <!-- MODAL: CONTACT DETAILS -->
+    <!-- MODAL 3: CONTACT DETAILS -->
     <div id="modal-contact-details" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50">
         <div class="bg-white max-w-2xl w-full p-6 rounded-2xl shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b pb-3">
                 <h3 class="font-bold text-slate-800 text-base">👤 ລາຍລະອຽດຄູ່ສັນຍາ & ຂໍ້ມູນສັນຍາ</h3>
                 <button onclick="closeContactDetailsModal()" class="text-slate-400 font-bold text-lg">✕</button>
             </div>
+            
             <div id="contact-details-content" class="space-y-4 text-xs text-slate-700"></div>
+
             <div class="pt-3 border-t flex justify-between items-center">
-                <button id="btn-detail-create-loan" class="bg-emerald-600 text-white font-semibold text-xs px-4 py-2 rounded-lg">📝 ສ້າງສັນຍາໃຫ້ຄົນນີ້</button>
+                <button id="btn-detail-create-loan" onclick="" class="bg-emerald-600 text-white font-semibold text-xs px-4 py-2 rounded-lg">📝 ສ້າງສັນຍາໃຫ້ຄົນນີ້</button>
                 <button onclick="closeContactDetailsModal()" class="bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 rounded-lg">ປິດ</button>
             </div>
         </div>
@@ -387,148 +762,180 @@
     <div id="print-modal" class="fixed inset-0 bg-slate-900/80 hidden items-center justify-center p-2 md:p-4 z-50 overflow-y-auto">
         <div class="bg-slate-800 max-w-4xl w-full p-4 rounded-2xl shadow-2xl relative space-y-3 max-h-[96vh] flex flex-col">
             <div id="print-modal-header" class="flex flex-wrap justify-between items-center border-b border-slate-700 pb-3 text-white gap-2">
-                <h3 id="preview-modal-title" class="font-bold text-sm flex items-center space-x-2"><span>📄</span><span id="preview-title-text">ຕົວຢ່າງເອກະສານ</span></h3>
+                <h3 id="preview-modal-title" class="font-bold text-sm flex items-center space-x-2">
+                    <span>📄</span>
+                    <span id="preview-title-text">ຕົວຢ່າງເອກະສານ</span>
+                </h3>
                 <div class="flex flex-wrap gap-2">
-                    <button onclick="exportToImage()" class="bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">📷 ເຊບເປັນຮູບ (PNG)</button>
-                    <button onclick="triggerBrowserPrint()" class="bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">📄 ເຊບເປັນ PDF / ພິມ</button>
-                    <button onclick="exportToWord()" class="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">📝 ເຊບເປັນ Word (.doc)</button>
-                    <button onclick="closePrintModal()" class="bg-slate-700 text-slate-200 text-xs font-bold px-3 py-1.5 rounded-lg">✕ ປິດ</button>
+                    <button onclick="exportToImage()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow transition flex items-center space-x-1">
+                        <span>📷</span><span>ເຊບເປັນຮູບພາບ (PNG)</span>
+                    </button>
+                    <button onclick="triggerBrowserPrint()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow transition flex items-center space-x-1">
+                        <span>📄</span><span>ເຊບເປັນ PDF / ພິມ</span>
+                    </button>
+                    <button onclick="exportToWord()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow transition flex items-center space-x-1">
+                        <span>📝</span><span>ເຊບເປັນ Word (.doc)</span>
+                    </button>
+                    <button onclick="closePrintModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold px-3 py-1.5 rounded-lg">✕ ປິດ</button>
                 </div>
             </div>
+            
             <div class="flex-1 overflow-y-auto bg-slate-900/90 p-2 md:p-6 flex justify-center rounded-xl border-0">
+                <!-- A4 Preview Page Container -->
                 <div id="print-section" class="w-[210mm] min-h-[297mm] bg-white px-[12mm] pt-[5mm] pb-[12mm] text-slate-900 text-[11pt] space-y-2 leading-relaxed mx-auto text-justify border-0 shadow-none"></div>
             </div>
         </div>
     </div>
 
-    <!-- JAVASCRIPT & FIREBASE REALTIME LOGIC -->
+    <!-- JAVASCRIPT LOGIC -->
     <script>
-        // 1. FIREBASE CONFIGURATION (ປ່ຽນຄ່າບ່ອນນີ້ໃຫ້ເປັນຂອງໂຄງການທ່ານ)
-        const firebaseConfig = {
-		apiKey: "AIzaSyAjVOV2RSI5pjIk-vIOik0kuu5eUCNtrns",
-  		authDomain: "loan-system-50f8d.firebaseapp.com",
-  		databaseURL: "https://loan-system-50f8d-default-rtdb.asia-southeast1.firebasedatabase.app",
-  		projectId: "loan-system-50f8d",
-  		storageBucket: "loan-system-50f8d.firebasestorage.app",
-  		messagingSenderId: "1018482546763",
-  		appId: "1:1018482546763:web:4c3c90821d62c2e60795ce",
-  		measurementId: "G-5H43ESZG2H"
-        };
-
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        const dbRef = db.ref('system_app_data');
-
-        // Local Memory State
-        let contacts = [];
-        let loans = [];
-        let myProfiles = [{
-            id: 'MYP-1', name: 'ທ່ານ / ບໍລິສັດ (ຜູ້ໃຊ້ລະບົບ)', gender: 'ຊາຍ',
-            age: '30', idCard: '001234567', houseNo: '01', village: 'ໂພນໄຊ',
-            district: 'ໄຊເສດຖາ', province: 'ນະຄອນຫຼວງວຽງຈັນ', phone: '02055555555', isDefault: true
-        }];
-
+        let contacts = JSON.parse(localStorage.getItem('sys_contacts')) || [];
+        let loans = JSON.parse(localStorage.getItem('sys_loans')) || [];
+        let gsheetUrl = localStorage.getItem('sys_gsheet_url') || '';
         let editingContactId = null;
         let editingMyProfileId = null;
         let currentExportFilename = 'ເອກະສານ';
 
-        // 2. REAL-TIME LISTENER (ອັບເດດທັນທີ < 0.1 ວິນາທີ ເມື່ອມີເຄື່ອງໃດແກ້ໄຂ)
-        dbRef.on('value', (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                contacts = data.contacts || [];
-                loans = data.loans || [];
-                myProfiles = data.myProfiles || myProfiles;
-
-                // Sync to Local Storage
-                localStorage.setItem('sys_contacts', JSON.stringify(contacts));
-                localStorage.setItem('sys_loans', JSON.stringify(loans));
-                localStorage.setItem('sys_my_profiles', JSON.stringify(myProfiles));
-
-                // Re-render UI
-                renderDashboard();
-                renderContacts();
-                renderLoansTable();
-                renderMyProfiles();
-            }
-        });
-
-        // Push local changes to Firebase Realtime DB
-        function syncToFirebase() {
-            dbRef.set({
-                contacts: contacts,
-                loans: loans,
-                myProfiles: myProfiles
-            });
-        }
+        let myProfiles = JSON.parse(localStorage.getItem('sys_my_profiles')) || [{
+            id: 'MYP-1',
+            name: 'ທ່ານ / ບໍລິສັດ (ຜູ້ໃຊ້ລະບົບ)',
+            gender: 'ຊາຍ',
+            age: '30', idCard: '001234567', houseNo: '01',
+            village: 'ໂພນໄຊ', district: 'ໄຊເສດຖາ', province: 'ນະຄອນຫຼວງວຽງຈັນ',
+            phone: '02055555555', isDefault: true
+        }];
 
         const todayStr = new Date().toISOString().split('T')[0];
         document.getElementById('l-start-date').value = todayStr;
         document.getElementById('p-date').value = todayStr;
         document.getElementById('clock').innerText = new Date().toLocaleDateString('lo-LA', { dateStyle: 'full' });
 
-        // Helper utilities
+        if (gsheetUrl) {
+            document.getElementById('gsheet-url').value = gsheetUrl;
+            document.getElementById('sync-status').innerText = 'Google Sheets Ready';
+            document.getElementById('sync-status').className = 'text-xs bg-emerald-800 px-2.5 py-1 rounded-full text-emerald-100';
+        }
+
+        // --- LAO NUMBER TO TEXT CONVERTER ---
         function numberToLaoText(num) {
             if (isNaN(num) || num === 0) return '';
             const digits = ['ສູນ', 'ໜຶ່ງ', 'ສອງ', 'ສາມ', 'ສີ່', 'ຫ້າ', 'ຫົກ', 'ເຈັດ', 'ແປດ', 'ເກົ້າ'];
             const units = ['', 'ສິບ', 'ຮ້ອຍ', 'ພັນ', 'ໝື່ນ', 'ແສນ'];
+
             function convertGroup(n) {
-                let str = '', s = n.toString(), len = s.length;
+                let str = '';
+                let s = n.toString();
+                let len = s.length;
                 for (let i = 0; i < len; i++) {
-                    let digit = parseInt(s[i]), pos = len - i - 1;
+                    let digit = parseInt(s[i]);
+                    let pos = len - i - 1;
                     if (digit !== 0) {
-                        if (pos === 1 && digit === 1) str += 'ສິບ';
-                        else if (pos === 1 && digit === 2) str += 'ຊາວ';
-                        else if (pos === 0 && digit === 1 && len > 1 && parseInt(s[len-2]) !== 0) str += 'ເອັດ';
-                        else str += digits[digit] + units[pos];
+                        if (pos === 1 && digit === 1) {
+                            str += 'ສິບ';
+                        } else if (pos === 1 && digit === 2) {
+                            str += 'ຊາວ';
+                        } else if (pos === 0 && digit === 1 && len > 1 && parseInt(s[len-2]) !== 0) {
+                            str += 'ເອັດ';
+                        } else {
+                            str += digits[digit] + units[pos];
+                        }
                     }
                 }
                 return str;
             }
+
             let nStr = Math.floor(num).toString();
             if (nStr.length > 6) {
-                let millions = Math.floor(num / 1000000), remainder = num % 1000000;
+                let millions = Math.floor(num / 1000000);
+                let remainder = num % 1000000;
                 let text = numberToLaoText(millions).replace('ກີບ', '') + 'ລ້ານ';
-                if (remainder > 0) text += convertGroup(remainder);
+                if (remainder > 0) {
+                    text += convertGroup(remainder);
+                }
                 return text + 'ກີບ';
-            } else return convertGroup(num) + 'ກີບ';
+            } else {
+                return convertGroup(num) + 'ກີບ';
+            }
         }
 
+        // Auto convert number to Lao words on input
         document.getElementById('l-amount').addEventListener('input', function() {
             const val = parseFloat(this.value);
-            document.getElementById('l-amount-text').value = (!isNaN(val) && val > 0) ? numberToLaoText(val) : '';
+            if (!isNaN(val) && val > 0) {
+                document.getElementById('l-amount-text').value = numberToLaoText(val);
+            } else {
+                document.getElementById('l-amount-text').value = '';
+            }
         });
 
+        // Toggle Dynamic Collateral Input Fields
         function toggleCollateralFields() {
-            document.getElementById('form-collateral-land').classList.toggle('hidden', !document.getElementById('chk-collateral-land').checked);
-            document.getElementById('form-collateral-vehicle').classList.toggle('hidden', !document.getElementById('chk-collateral-vehicle').checked);
-            document.getElementById('form-collateral-gold').classList.toggle('hidden', !document.getElementById('chk-collateral-gold').checked);
-            document.getElementById('form-collateral-other').classList.toggle('hidden', !document.getElementById('chk-collateral-other').checked);
+            const landChk = document.getElementById('chk-collateral-land').checked;
+            const vehChk = document.getElementById('chk-collateral-vehicle').checked;
+            const goldChk = document.getElementById('chk-collateral-gold').checked;
+            const otherChk = document.getElementById('chk-collateral-other').checked;
+
+            document.getElementById('form-collateral-land').classList.toggle('hidden', !landChk);
+            document.getElementById('form-collateral-vehicle').classList.toggle('hidden', !vehChk);
+            document.getElementById('form-collateral-gold').classList.toggle('hidden', !goldChk);
+            document.getElementById('form-collateral-other').classList.toggle('hidden', !otherChk);
         }
 
+        // DATE FORMATTER: DD/MM/YYYY
         function formatDateLao(dStr) {
             if (!dStr) return '-';
             const parts = dStr.split('-');
-            return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dStr;
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            return dStr;
         }
 
+        // PERSON TITLE FORMATTER (ທ່ານ OR ນາງ)
         function getPersonTitle(gender, name) {
-            let cleanName = (name || '').trim().replace(/^ທ່ານ\/ນາງ|^ທ່ານ|^ນາງ/, '').trim();
-            return `${(gender === 'ຍິງ' || gender === 'F') ? 'ນາງ' : 'ທ່ານ'} ${cleanName}`;
+            let cleanName = (name || '').trim();
+            if (cleanName.startsWith('ທ່ານ/ນາງ')) cleanName = cleanName.replace('ທ່ານ/ນາງ', '').trim();
+            if (cleanName.startsWith('ທ່ານ')) cleanName = cleanName.replace('ທ່ານ', '').trim();
+            if (cleanName.startsWith('ນາງ')) cleanName = cleanName.replace('ນາງ', '').trim();
+            
+            const prefix = (gender === 'ຍິງ' || gender === 'F') ? 'ນາງ' : 'ທ່ານ';
+            return `${prefix} ${cleanName}`;
         }
 
-        function formatVillage(v) { return (!v || v === '-') ? 'ບ້ານ............' : (v.trim().startsWith('ບ້ານ') ? v.trim() : 'ບ້ານ' + v.trim()); }
-        function formatDistrict(d) { return (!d || d === '-') ? 'ເມືອງ............' : (d.trim().startsWith('ເມືອງ') ? d.trim() : 'ເມືອງ' + d.trim()); }
-        function formatProvince(p) { return (!p || p === '-') ? 'ແຂວງ............' : (p.trim().startsWith('ແຂວງ') ? p.trim() : 'ແຂວງ' + p.trim()); }
+        // ADDRESS FORMATTING HELPERS (CLEAN NO COLONS)
+        function formatVillage(v) {
+            if (!v || v === '-') return 'ບ້ານ............';
+            v = v.trim();
+            return v.startsWith('ບ້ານ') ? v : 'ບ້ານ' + v;
+        }
 
+        function formatDistrict(d) {
+            if (!d || d === '-') return 'ເມືອງ............';
+            d = d.trim();
+            return d.startsWith('ເມືອງ') ? d : 'ເມືອງ' + d;
+        }
+
+        function formatProvince(p) {
+            if (!p || p === '-') return 'ແຂວງ............';
+            p = p.trim();
+            return p.startsWith('ແຂວງ') ? p : 'ແຂວງ' + p;
+        }
+
+        // TOGGLE COLLAPSIBLE CONTACT FORM
         function toggleContactForm(show = null) {
             const container = document.getElementById('contact-form-container');
-            if (show === true) container.classList.remove('hidden');
-            else if (show === false) container.classList.add('hidden');
-            else container.classList.toggle('hidden');
+            if (!container) return;
+
+            if (show === true) {
+                container.classList.remove('hidden');
+            } else if (show === false) {
+                container.classList.add('hidden');
+            } else {
+                container.classList.toggle('hidden');
+            }
         }
 
+        // UNIFIED DATA CLEANER HELPER
         function getCleanLoans() {
             return loans.map(l => ({
                 ...l,
@@ -550,8 +957,12 @@
             });
             document.getElementById(`tab-${tabId}`).classList.remove('hidden');
             document.getElementById(`nav-${tabId}`).className = "py-3 px-4 font-semibold border-b-2 border-indigo-600 text-indigo-600";
+            
             if(tabId === 'dashboard') renderDashboard();
-            if(tabId === 'customers') { renderContacts(); renderLoansTable(); }
+            if(tabId === 'customers') {
+                renderContacts();
+                renderLoansTable();
+            }
             if(tabId === 'profile') renderMyProfiles();
         }
 
@@ -559,8 +970,27 @@
             populateDropdowns();
             if (contactId) document.getElementById('l-contact-select').value = contactId;
             document.getElementById('l-interest-prepaid').checked = false;
-            ['chk-collateral-land', 'chk-collateral-vehicle', 'chk-collateral-gold', 'chk-collateral-other'].forEach(id => document.getElementById(id).checked = false);
+            
+            // Reset collateral checkboxes & forms
+            document.getElementById('chk-collateral-land').checked = false;
+            document.getElementById('chk-collateral-vehicle').checked = false;
+            document.getElementById('chk-collateral-gold').checked = false;
+            document.getElementById('chk-collateral-other').checked = false;
             toggleCollateralFields();
+
+            const resetIds = [
+                'land-no', 'land-village', 'land-district', 'land-province',
+                'land-north-border', 'land-north-size', 'land-south-border', 'land-south-size',
+                'land-east-border', 'land-east-size', 'land-west-border', 'land-west-size', 'land-total-size',
+                'veh-brand', 'veh-plate', 'veh-engine', 'veh-chassis', 'veh-color', 'veh-doc-no',
+                'gold-weight', 'gold-purity', 'gold-style', 'other-collateral-desc',
+                'l-witness1', 'l-witness1-village', 'l-witness1-phone', 'l-witness2', 'l-witness2-village', 'l-witness2-phone', 'l-witness3', 'l-witness3-village', 'l-witness3-phone'
+            ];
+            resetIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+
             document.getElementById('modal-create-loan').classList.remove('hidden');
             document.getElementById('modal-create-loan').classList.add('flex');
         }
@@ -577,16 +1007,24 @@
         function closePrintModal() { document.getElementById('print-modal').classList.add('hidden'); }
         function closeContactDetailsModal() { document.getElementById('modal-contact-details').classList.add('hidden'); }
 
+        // --- SYSTEM USER PROFILES MANAGEMENT ---
         function toggleMyProfileForm(show = null) {
             const container = document.getElementById('myprofile-form-container');
-            if (show === true) container.classList.remove('hidden');
-            else if (show === false) container.classList.add('hidden');
-            else container.classList.toggle('hidden');
+            if (!container) return;
+
+            if (show === true) {
+                container.classList.remove('hidden');
+            } else if (show === false) {
+                container.classList.add('hidden');
+            } else {
+                container.classList.toggle('hidden');
+            }
         }
 
         function renderMyProfiles() {
             const container = document.getElementById('my-profile-list');
             if (!container) return;
+
             container.innerHTML = myProfiles.map(p => `
                 <div class="p-3 border rounded-xl bg-slate-50 flex justify-between items-center text-xs shadow-sm">
                     <div>
@@ -594,9 +1032,10 @@
                             <span>${getPersonTitle(p.gender, p.name)}</span>
                             ${p.isDefault ? '<span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">ເລີ່ມຕົ້ນ</span>' : ''}
                         </div>
-                        <div class="text-[11px] text-slate-500">${formatVillage(p.village)}, ${formatDistrict(p.district)}, ໂທ: ${p.phone}</div>
+                        <div class="text-[11px] text-slate-500">${formatVillage(p.village)}, ${formatDistrict(p.district)}, ອາຊີບ: ${p.occupation || '-'}, ໂທ: ${p.phone}</div>
                     </div>
                     <div class="space-x-1">
+                        ${!p.isDefault ? `<button onclick="setDefaultProfile('${p.id}')" class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100 font-medium">⭐ ເລີ່ມຕົ້ນ</button>` : ''}
                         <button onclick="editMyProfile('${p.id}')" class="px-2 py-1 bg-amber-50 text-amber-700 rounded hover:bg-amber-100 font-medium">✏️ ແກ້ໄຂ</button>
                         <button onclick="deleteMyProfile('${p.id}')" class="px-2 py-1 bg-rose-50 text-rose-700 rounded hover:bg-rose-100 font-medium">🗑️ ລົບ</button>
                     </div>
@@ -619,46 +1058,104 @@
 
             if (editingMyProfileId) {
                 const idx = myProfiles.findIndex(p => p.id === editingMyProfileId);
-                if (idx !== -1) myProfiles[idx] = { ...myProfiles[idx], gender, name, age, idCard, occupation, houseNo, village, district, province, phone };
+                if (idx !== -1) {
+                    myProfiles[idx] = { ...myProfiles[idx], gender, name, age, idCard, occupation, houseNo, village, district, province, phone };
+                    alert('ອັບເດດຂໍ້ມູນສ່ວນຕົວສຳເລັດ!');
+                }
             } else {
-                myProfiles.push({ id: 'MYP-' + Date.now(), gender, name, age, idCard, occupation, houseNo, village, district, province, phone, isDefault: myProfiles.length === 0 });
+                const newP = {
+                    id: 'MYP-' + Date.now(),
+                    gender, name, age, idCard, occupation, houseNo, village, district, province, phone,
+                    isDefault: myProfiles.length === 0
+                };
+                myProfiles.push(newP);
+                alert('ເພີ່ມຂໍ້ມູນສ່ວນຕົວໃໝ່ສຳເລັດ!');
             }
 
-            syncToFirebase();
+            localStorage.setItem('sys_my_profiles', JSON.stringify(myProfiles));
+            syncToGSheets();
             resetMyProfileForm();
+            renderMyProfiles();
         });
 
         function editMyProfile(id) {
             const p = myProfiles.find(x => x.id === id);
             if (!p) return;
+
             editingMyProfileId = p.id;
             toggleMyProfileForm(true);
+
+            document.getElementById('form-myprofile-title').innerText = '✏️ ແກ້ໄຂຂໍ້ມູນສ່ວນຕົວ (ຝ່າຍເຮົາ)';
+            
+            const gRadio = document.querySelector(`input[name="my-gender"][value="${p.gender || 'ຊາຍ'}"]`);
+            if (gRadio) gRadio.checked = true;
+
             document.getElementById('my-name').value = p.name || '';
+            document.getElementById('my-age').value = p.age === '-' ? '' : p.age || '';
+            document.getElementById('my-idcard').value = p.idCard === '-' ? '' : p.idCard || '';
+            document.getElementById('my-occupation').value = p.occupation === '-' ? '' : p.occupation || '';
+            document.getElementById('my-houseno').value = p.houseNo === '-' ? '' : p.houseNo || '';
+            document.getElementById('my-village').value = p.village === '-' ? '' : p.village || '';
+            document.getElementById('my-district').value = p.district === '-' ? '' : p.district || '';
+            document.getElementById('my-province').value = p.province === '-' ? '' : p.province || '';
             document.getElementById('my-phone').value = p.phone || '';
+
+            document.getElementById('btn-submit-myprofile').innerText = '💾 ອັບເດດຂໍ້ມູນ';
+            document.getElementById('btn-cancel-myprofile').classList.remove('hidden');
+
+            document.getElementById('myprofile-form-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         function resetMyProfileForm() {
             editingMyProfileId = null;
             document.getElementById('myprofile-form').reset();
+            document.getElementById('form-myprofile-title').innerText = '👤 ເພີ່ມຂໍ້ມູນສ່ວນຕົວ (ຝ່າຍເຮົາ)';
+            document.getElementById('btn-submit-myprofile').innerText = '💾 ບັນທຶກຂໍ້ມູນຝ່າຍເຮົາ';
+            document.getElementById('btn-cancel-myprofile').classList.add('hidden');
             toggleMyProfileForm(false);
         }
 
         function deleteMyProfile(id) {
-            if (confirm(`⚠️ ແນ່ໃຈບໍ່ວ່າຕ້ອງການລົບ?`)) {
+            const p = myProfiles.find(x => x.id === id);
+            if (!p) return;
+
+            if (confirm(`⚠️ ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລົບຂໍ້ມູນສ່ວນຕົວ "${p.name}"?`)) {
                 myProfiles = myProfiles.filter(x => x.id !== id);
-                syncToFirebase();
+                if (myProfiles.length > 0 && !myProfiles.some(x => x.isDefault)) {
+                    myProfiles[0].isDefault = true;
+                }
+                localStorage.setItem('sys_my_profiles', JSON.stringify(myProfiles));
+                syncToGSheets();
+                resetMyProfileForm();
+                renderMyProfiles();
+                alert('ລົບຂໍ້ມູນສ່ວນຕົວຮຽບຮ້ອຍແລ້ວ!');
             }
         }
 
+        // DASHBOARD FINANCIAL CALCULATIONS
         function renderDashboard() {
             const cleanLoans = getCleanLoans();
-            let totalLendAmount = 0, lendPrincipalCollected = 0, totalLendInterestExpected = 0, lendInterestCollected = 0;
-            let totalBorrowAmount = 0, borrowPrincipalPaid = 0, totalBorrowInterestExpected = 0, borrowInterestPaid = 0;
+
+            let totalLendAmount = 0;
+            let lendPrincipalCollected = 0;
+            let totalLendInterestExpected = 0;
+            let lendInterestCollected = 0;
+
+            let totalBorrowAmount = 0;
+            let borrowPrincipalPaid = 0;
+            let totalBorrowInterestExpected = 0;
+            let borrowInterestPaid = 0;
 
             cleanLoans.forEach(l => {
                 const expectedInterest = (l.amount * (l.interestRate / 100)) * l.months;
+                
                 let interestPaidOrCollected = l.paidInterest;
                 let principalPaidOrCollected = l.paidPrincipal;
+
+                if (!l.paidInterest && !l.paidPrincipal && l.paidAmount > 0) {
+                    interestPaidOrCollected = Math.min(l.paidAmount, expectedInterest);
+                    principalPaidOrCollected = Math.min(l.amount, Math.max(0, l.paidAmount - expectedInterest));
+                }
 
                 if (l.type === 'LEND') {
                     totalLendAmount += l.amount;
@@ -673,58 +1170,670 @@
                 }
             });
 
+            const lendPrincipalRem = Math.max(0, totalLendAmount - lendPrincipalCollected);
+            const lendInterestRem = Math.max(0, totalLendInterestExpected - lendInterestCollected);
+
+            const borrowPrincipalRem = Math.max(0, totalBorrowAmount - borrowPrincipalPaid);
+            const borrowInterestRem = Math.max(0, totalBorrowInterestExpected - borrowInterestPaid);
+
+            // Red Card: ຢືມມາ
             document.getElementById('stat-borrow-total').innerText = Math.round(totalBorrowAmount).toLocaleString() + " ກີບ";
             document.getElementById('stat-borrow-principal-paid').innerText = Math.round(borrowPrincipalPaid).toLocaleString() + " ກີບ";
-            document.getElementById('stat-borrow-principal-rem').innerText = Math.round(Math.max(0, totalBorrowAmount - borrowPrincipalPaid)).toLocaleString() + " ກີບ";
+            document.getElementById('stat-borrow-principal-rem').innerText = Math.round(borrowPrincipalRem).toLocaleString() + " ກີບ";
 
+            document.getElementById('stat-borrow-interest-total').innerText = Math.round(totalBorrowInterestExpected).toLocaleString() + " ກີບ";
+            document.getElementById('stat-borrow-interest-paid').innerText = Math.round(borrowInterestPaid).toLocaleString() + " ກີບ";
+            document.getElementById('stat-borrow-interest-rem').innerText = Math.round(borrowInterestRem).toLocaleString() + " ກີບ";
+
+            // Green Card: ປ່ອຍກູ້
             document.getElementById('stat-lend-total').innerText = Math.round(totalLendAmount).toLocaleString() + " ກີບ";
             document.getElementById('stat-lend-principal-paid').innerText = Math.round(lendPrincipalCollected).toLocaleString() + " ກີບ";
-            document.getElementById('stat-lend-principal-rem').innerText = Math.round(Math.max(0, totalLendAmount - lendPrincipalCollected)).toLocaleString() + " ກີບ";
+            document.getElementById('stat-lend-principal-rem').innerText = Math.round(lendPrincipalRem).toLocaleString() + " ກີບ";
+
+            document.getElementById('stat-lend-interest-total').innerText = Math.round(totalLendInterestExpected).toLocaleString() + " ກີບ";
+            document.getElementById('stat-lend-interest-paid').innerText = Math.round(lendInterestCollected).toLocaleString() + " ກີບ";
+            document.getElementById('stat-lend-interest-rem').innerText = Math.round(lendInterestRem).toLocaleString() + " ກີບ";
+
+            // Blue Card: ຜົນດຳເນີນການ
+            const remBorrowed = totalBorrowAmount - totalLendAmount;
+            const remBorrowedElem = document.getElementById('stat-rem-borrowed');
+            if (remBorrowed >= 0) {
+                remBorrowedElem.innerText = Math.round(remBorrowed).toLocaleString() + " ກີບ";
+                remBorrowedElem.className = "text-sm font-bold text-slate-800";
+            } else {
+                remBorrowedElem.innerText = `-${Math.abs(Math.round(remBorrowed)).toLocaleString()} ກີບ (ປ່ອຍເກີນຍອດຢືມ)`;
+                remBorrowedElem.className = "text-sm font-bold text-amber-600";
+            }
 
             const netProfitLoss = lendInterestCollected - borrowInterestPaid;
-            document.getElementById('stat-profit-loss').innerText = (netProfitLoss >= 0 ? "+" : "") + Math.round(netProfitLoss).toLocaleString() + " ກີບ";
+            const profitLossElem = document.getElementById('stat-profit-loss');
+
+            if (netProfitLoss >= 0) {
+                profitLossElem.innerText = `+${Math.round(netProfitLoss).toLocaleString()} ກີບ (ກຳໄລ)`;
+                profitLossElem.className = "text-sm font-bold text-emerald-600";
+            } else {
+                profitLossElem.innerText = `-${Math.abs(Math.round(netProfitLoss)).toLocaleString()} ກີບ (ຂາດທຶນ)`;
+                profitLossElem.className = "text-sm font-bold text-rose-600";
+            }
         }
 
+        // RENDER ALL CONTRACTS TABLE SORTED BY START/CREATION DATE (ASCENDING)
         function renderLoansTable() {
             const cleanLoans = getCleanLoans();
-            cleanLoans.sort((a, b) => new Date(a.startDate || 0) - new Date(b.startDate || 0));
-            document.getElementById('contract-count').innerText = `${cleanLoans.length} ສັນຍາ`;
+
+            cleanLoans.sort((a, b) => {
+                const dateA = new Date(a.startDate || 0);
+                const dateB = new Date(b.startDate || 0);
+                return dateA - dateB;
+            });
+
+            const countElem = document.getElementById('contract-count');
+            if (countElem) countElem.innerText = `${cleanLoans.length} ສັນຍາ`;
 
             const tbody = document.getElementById('all-loans-table-body');
             if (!tbody) return;
+
             if (cleanLoans.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-slate-400 italic">ບໍ່ມີຂໍ້ມູນສັນຍາກູ້ຢືມ</td></tr>`;
                 return;
             }
 
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
             tbody.innerHTML = cleanLoans.map(l => {
                 const isLend = l.type === 'LEND';
+                const rowClass = isLend 
+                    ? 'bg-emerald-50/60 hover:bg-emerald-100/60 text-emerald-950 border-b border-emerald-200' 
+                    : 'bg-rose-50/60 hover:bg-rose-100/60 text-rose-950 border-b border-rose-200';
+
+                // ຄິດໄລ່ຈຳນວນມື້ທີ່ຍັງເຫຼືອ
+                const endDate = new Date(l.endDate);
+                endDate.setHours(0, 0, 0, 0);
+                const diffTime = endDate - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                let remainingBadge = '';
+                if (diffDays > 0) {
+                    remainingBadge = `<span class="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full font-bold text-xs shadow-sm">${diffDays} ມື້</span>`;
+                } else if (diffDays === 0) {
+                    remainingBadge = `<span class="px-2.5 py-1 bg-rose-500 text-white rounded-full font-bold text-xs animate-pulse shadow-sm">ຄົບກຳນົດມື້ນີ້</span>`;
+                } else {
+                    remainingBadge = `<span class="px-2.5 py-1 bg-rose-100 text-rose-800 rounded-full font-bold text-xs shadow-sm">ກາຍ ${Math.abs(diffDays)} ມື້</span>`;
+                }
+
                 return `
-                    <tr class="hover:bg-slate-50 border-b text-xs">
-                        <td class="p-3 font-semibold">${isLend ? '🟢 ປ່ອຍກູ້' : '🔴 ກູ້ຢືມ'}</td>
-                        <td class="p-3 font-mono font-bold">${l.contractId}</td>
-                        <td class="p-3 font-medium text-indigo-700">${getPersonTitle(l.contactGender, l.contactName)}</td>
+                    <tr class="${rowClass} transition">
+                        <td class="p-3 font-semibold text-xs">
+                            ${isLend 
+                                ? '<span class="px-2.5 py-1 bg-emerald-200/80 text-emerald-900 rounded font-bold">🟢 ປ່ອຍກູ້</span>' 
+                                : '<span class="px-2.5 py-1 bg-rose-200/80 text-rose-900 rounded font-bold">🔴 ກູ້ຢືມ</span>'}
+                        </td>
+                        <td class="p-3 font-mono font-bold text-xs">${l.contractId}</td>
+                        <td class="p-3 font-medium cursor-pointer text-indigo-700 hover:underline" onclick="showContactDetails('${l.contactId}')">${getPersonTitle(l.contactGender, l.contactName)}</td>
                         <td class="p-3 font-bold">${l.amount.toLocaleString()} ກີບ</td>
-                        <td class="p-3">${l.interestRate}%</td>
+                        <td class="p-3 font-semibold ${isLend ? 'text-emerald-700' : 'text-rose-700'}">${l.interestRate}%</td>
                         <td class="p-3 text-xs opacity-80">${formatDateLao(l.startDate)} ເຖິງ ${formatDateLao(l.endDate)}</td>
-                        <td class="p-3 text-center"><span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded font-bold">ກຳລັງຜ່ອນ</span></td>
+                        <td class="p-3 text-center">${remainingBadge}</td>
                         <td class="p-3 text-center space-x-1">
-                            <button onclick="openPaymentModal('${l.contractId}')" class="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded font-medium">💵 ຊຳລະ</button>
-                            <button onclick="openLoanContractModal('${l.contractId}')" class="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded font-medium">📄 ສັນຍາ</button>
-                            <button onclick="deleteLoan('${l.contractId}')" class="text-xs bg-rose-200 text-rose-900 px-2 py-1 rounded font-medium">🗑️ ລົບ</button>
+                            <button onclick="openPaymentModal('${l.contractId}')" class="text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 px-2 py-1 rounded font-medium shadow-sm">💵 ຊຳລະ</button>
+                            <button onclick="openLoanContractModal('${l.contractId}')" class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-2 py-1 rounded font-medium shadow-sm">📄 ສັນຍາ</button>
+                            <button onclick="openLandCertificateModal('${l.contractId}')" class="text-xs bg-teal-100 hover:bg-teal-200 text-teal-800 px-2 py-1 rounded font-medium shadow-sm">📜 ໜັງສືມອບສິດ</button>
+                            <button onclick="sendWhatsAppNotice('${l.contractId}')" class="text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-2 py-1 rounded font-medium shadow-sm">💬 WhatsApp</button>
+                            <button onclick="deleteLoan('${l.contractId}')" class="text-xs bg-rose-200 hover:bg-rose-300 text-rose-900 px-2 py-1 rounded font-medium shadow-sm">🗑️ ລົບ</button>
                         </td>
                     </tr>
                 `;
             }).join('');
         }
 
+        // ຟັງຊັນສົ່ງ WhatsApp ແຈ້ງເຕືອນສັນຍາຄົບກຳນົດ
+        function sendWhatsAppNotice(contractId) {
+            const loan = loans.find(l => l.contractId === contractId);
+            if (!loan) return alert('ບໍ່ພົບຂໍ້ມູນສັນຍາ');
+
+            const contact = contacts.find(c => c.id === loan.contactId) || {
+                name: loan.contactName, gender: loan.contactGender, phone: loan.contactPhone
+            };
+
+            let phone = (contact.phone || '').trim().replace(/\D/g, '');
+            if (phone.startsWith('020')) phone = '85620' + phone.slice(3);
+            else if (phone.length === 8) phone = '85620' + phone;
+
+            const isLend = loan.type === 'LEND';
+            const personTitle = getPersonTitle(contact.gender, contact.name);
+            const expectedInterest = (loan.amount * (loan.interestRate / 100)) * loan.months;
+            const totalRemaining = Math.max(0, (loan.amount + expectedInterest) - (loan.paidAmount || 0));
+
+            const msg = `ສະບາຍດີ ${personTitle},\n\n` +
+                `ຂໍແຈ້ງເຕືອນສັນຍາກູ້ຢືມເງິນ ເລກທີ: ${loan.contractId}\n` +
+                `📅 ວັນທີຄົບກຳນົດ: ${formatDateLao(loan.endDate)}\n` +
+                `💰 ຍອດເງິນຄ້າງຊຳລະ (ຕົ້ນ + ດອກ): ${Math.round(totalRemaining).toLocaleString()} ກີບ\n\n` +
+                `ກະລຸນາຕິດຕໍ່ຊຳລະ ຫຼື ສອບຖາມຂໍ້ມູນເພີ່ມເຕີມ. ຂອບໃຈ!`;
+
+            const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
+        }
+
+        // DELETE LOAN CONTRACT
         function deleteLoan(contractId) {
-            if (confirm(`⚠️ ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລົບສັນຍາ "${contractId}"?`)) {
+            const l = loans.find(x => x.contractId === contractId);
+            if (!l) return;
+
+            if (confirm(`⚠️ ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລົບສັນຍາ "${contractId}" (${l.contactName})?`)) {
                 loans = loans.filter(x => x.contractId !== contractId);
-                syncToFirebase();
+                localStorage.setItem('sys_loans', JSON.stringify(loans));
+                syncToGSheets();
+                renderLoansTable();
+                renderDashboard();
+                renderContacts();
+                alert('ລົບສັນຍາເລຍບຮ້ອຍແລ້ວ!');
             }
         }
 
+        // SHOW DETAILED CONTACT & CONTRACT FINANCIAL BREAKDOWN
+        function showContactDetails(contactId) {
+            const c = contacts.find(x => x.id === contactId);
+            if (!c) return;
+
+            const cleanLoans = getCleanLoans();
+            const relatedLoans = cleanLoans.filter(l => l.contactId === contactId);
+            let loansHtml = '';
+
+            if (relatedLoans.length > 0) {
+                loansHtml = relatedLoans.map(l => {
+                    const expectedInterest = (l.amount * (l.interestRate / 100)) * l.months;
+                    
+                    let interestPaid = l.paidInterest;
+                    let principalPaid = l.paidPrincipal;
+
+                    if (!l.paidInterest && !l.paidPrincipal && l.paidAmount > 0) {
+                        interestPaid = Math.min(l.paidAmount, expectedInterest);
+                        principalPaid = Math.min(l.amount, Math.max(0, l.paidAmount - expectedInterest));
+                    }
+
+                    const interestRem = Math.max(0, expectedInterest - interestPaid);
+                    const principalRem = Math.max(0, l.amount - principalPaid);
+                    const totalRemaining = principalRem + interestRem;
+                    const isLend = l.type === 'LEND';
+
+                    return `
+                        <div class="p-3.5 border rounded-xl bg-slate-50 space-y-2.5 my-2 shadow-sm">
+                            <div class="flex justify-between items-center border-b pb-2">
+                                <div>
+                                    <span class="font-bold text-sm text-slate-800">${l.contractId}</span>
+                                    <span class="ml-1.5 px-2 py-0.5 rounded text-[11px] font-bold ${isLend ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                                        ${isLend ? '🟢 ປ່ອຍກູ້' : '🔴 ກູ້ຢືມ'}
+                                    </span>
+                                </div>
+                                <div class="space-x-1">
+                                    <button onclick="openLoanContractModal('${l.contractId}')" class="text-xs bg-indigo-600 text-white px-2.5 py-1 rounded-lg hover:bg-indigo-700 transition">📄 ສັນຍາ</button>
+                                    <button onclick="openLandCertificateModal('${l.contractId}')" class="text-xs bg-teal-600 text-white px-2.5 py-1 rounded-lg hover:bg-teal-700 transition">📜 ໜັງສືມອບສິດ</button>
+                                    <button onclick="sendWhatsAppNotice('${l.contractId}')" class="text-xs bg-emerald-600 text-white px-2.5 py-1 rounded-lg hover:bg-emerald-700 transition">💬 WhatsApp</button>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2 text-[11px] bg-white p-2 rounded-lg border">
+                                <div><strong>📅 ວັນທີເລີ່ມຢືມ:</strong> ${formatDateLao(l.startDate)}</div>
+                                <div><strong>⏳ ວັນທີຄົບກຳນົດ:</strong> <span class="text-indigo-600 font-bold">${formatDateLao(l.endDate)}</span></div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                                <div class="bg-white p-2.5 rounded-lg border space-y-1">
+                                    <p class="font-bold text-slate-700 border-b pb-1">💵 ຂໍ້ມູນເງິນຕົ້ນ:</p>
+                                    <div class="flex justify-between">
+                                        <span>ເງິນຕົ້ນທັງໝົດ:</span>
+                                        <strong>${l.amount.toLocaleString()} ກີບ</strong>
+                                    </div>
+                                    <div class="flex justify-between text-emerald-700">
+                                        <span>${isLend ? 'ໄດ້ຮັບຄືນແລ້ວ:' : 'ຈ່າຍແລ້ວ:'}</span>
+                                        <strong>${Math.round(principalPaid).toLocaleString()} ກີບ</strong>
+                                    </div>
+                                    <div class="flex justify-between text-rose-600">
+                                        <span>ຍັງຄ້າງ:</span>
+                                        <strong>${Math.round(principalRem).toLocaleString()} ກີບ</strong>
+                                    </div>
+                                </div>
+
+                                <div class="bg-white p-2.5 rounded-lg border space-y-1">
+                                    <p class="font-bold text-slate-700 border-b pb-1">📈 ຂໍ້ມູນດອກເບ້ຍ (${l.interestRate}%/ເດືອນ):</p>
+                                    <div class="flex justify-between">
+                                        <span>ດອກເບ້ຍລວມທັງໝົດ:</span>
+                                        <strong>${Math.round(expectedInterest).toLocaleString()} ກີບ</strong>
+                                    </div>
+                                    <div class="flex justify-between text-emerald-700">
+                                        <span>${isLend ? 'ຮັບແລ້ວ:' : 'ຈ່າຍແລ້ວ:'}</span>
+                                        <strong>${Math.round(interestPaid).toLocaleString()} ກີບ</strong>
+                                    </div>
+                                    <div class="flex justify-between text-rose-600">
+                                        <span>ຍັງຄ້າງ:</span>
+                                        <strong>${Math.round(interestRem).toLocaleString()} ກີບ</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-2 bg-indigo-50 border border-indigo-200 rounded-lg text-xs flex justify-between items-center">
+                                <span class="font-bold text-indigo-900">🎯 ຍອດລວມຄ້າງຊຳລະທັງໝົດ (ຕົ້ນ + ດອກ):</span>
+                                <strong class="text-sm text-indigo-700 font-bold">${Math.round(totalRemaining).toLocaleString()} ກີບ</strong>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                loansHtml = '<p class="text-slate-400 italic p-3 text-center">ຍັງບໍ່ມີປະວັດສັນຍາກູ້ຢືມ</p>';
+            }
+
+            const content = document.getElementById('contact-details-content');
+            content.innerHTML = `
+                <div class="bg-indigo-50 p-3 rounded-xl space-y-1">
+                    <h4 class="text-sm font-bold text-indigo-900">${getPersonTitle(c.gender, c.name)}</h4>
+                    <p class="text-xs text-indigo-700"><strong>ເບີໂທລະສັບ:</strong> ${c.phone}</p>
+                </div>
+                <div class="grid grid-cols-2 gap-2 border-b pb-2 text-xs">
+                    <div><strong>ອາຍຸ:</strong> ${c.age || '-'} ປີ</div>
+                    <div><strong>ບັດປະຈຳຕົວ:</strong> ${c.idCard || '-'}</div>
+                    <div><strong>ເຮືອນເລກທີ:</strong> ${c.houseNo || '-'}</div>
+                    <div><strong>ບ້ານ:</strong> ${formatVillage(c.village)}</div>
+                    <div><strong>ເມືອງ:</strong> ${formatDistrict(c.district)}</div>
+                    <div><strong>ແຂວງ:</strong> ${formatProvince(c.province)}</div>
+                </div>
+                <div class="pt-1">
+                    <h5 class="font-bold text-sm text-slate-800">📜 ລາຍລະອຽດສັນຍາກູ້ຢືມທັງໝົດ (${relatedLoans.length} ສັນຍາ):</h5>
+                    ${loansHtml}
+                </div>
+            `;
+
+            document.getElementById('btn-detail-create-loan').onclick = function() {
+                closeContactDetailsModal();
+                openCreateLoanModal(c.id);
+            };
+
+            document.getElementById('modal-contact-details').classList.remove('hidden');
+            document.getElementById('modal-contact-details').classList.add('flex');
+        }
+
+        function triggerBrowserPrint() {
+            window.print();
+        }
+
+        // ຟັງຊັນເຊບເອກະສານເປັນຮູບພາບ (PNG)
+        function exportToImage() {
+            const element = document.getElementById('print-section');
+            if (typeof html2canvas === 'undefined') {
+                alert('ກະລຸນາເຊື່ອມຕໍ່ອິນເຕີເນັດເພື່ອໂຫຼດລະບົບປ່ຽນເປັນຮູບພາບ');
+                return;
+            }
+            html2canvas(element, { scale: 2 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `${currentExportFilename}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+
+        // ຟັງຊັນສົ່ງອອກສັນຍາເປັນຟາຍ MS Word (.doc)
+        function exportToWord() {
+            const content = document.getElementById('print-section').innerHTML;
+            const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' "+
+                "xmlns:w='urn:schemas-microsoft-com:office:word' "+
+                "xmlns='http://www.w3.org/TR/REC-html40'>"+
+                "<head><meta charset='utf-8'><title>" + currentExportFilename + "</title></head><body>";
+            const footer = "</body></html>";
+            const sourceHTML = header + content + footer;
+
+            const blob = new Blob(['\ufeff', sourceHTML], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentExportFilename}.doc`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // 1. ສະແດງ ແລະ ບັນທຶກ "ສັນຍາກູ້ຢືມເງິນ" (ເລກທີສັນຍາຢູ່ແຖວດຽວກັບບ້ານ, ຍັບຫົວແຖວຂໍ້ຄວາມ, ຊື່ພະຍານ 12pt, ຕັ້ງ Font 'Phetsarath OT', 'Noto Sans Lao')
+        function openLoanContractModal(contractId) {
+            const loan = loans.find(l => l.contractId === contractId);
+            if (!loan) return alert('ບໍ່ພົບຂໍ້ມູນສັນຍາ');
+
+            const contact = contacts.find(c => c.id === loan.contactId) || {
+                name: loan.contactName, gender: loan.contactGender, age: '...', idCard: '...', houseNo: '...', village: '...', district: '...', province: '...', phone: loan.contactPhone
+            };
+
+            const myProf = loan.myProfileDetails || myProfiles.find(p => p.isDefault) || myProfiles[0];
+
+            let lender, borrower;
+            if (loan.type === 'LEND') {
+                lender = myProf;
+                borrower = contact;
+            } else {
+                lender = contact;
+                borrower = myProf;
+            }
+
+            const lenderTitle = getPersonTitle(lender.gender, lender.name);
+            const borrowerTitle = getPersonTitle(borrower.gender, borrower.name);
+            const hasGuarantor = loan.guarantorName && loan.guarantorName.trim() !== '';
+
+            // ດຶງຂໍ້ມູນພະຍານສະເພາະຊ່ອງທີ່ມີຂໍ້ມູນ
+            const activeWitnesses = [];
+            if (loan.witness1 && loan.witness1.trim() !== '') {
+                activeWitnesses.push({
+                    name: loan.witness1.trim(),
+                    village: loan.witness1Village || '',
+                    phone: loan.witness1Phone || ''
+                });
+            }
+            if (loan.witness2 && loan.witness2.trim() !== '') {
+                activeWitnesses.push({
+                    name: loan.witness2.trim(),
+                    village: loan.witness2Village || '',
+                    phone: loan.witness2Phone || ''
+                });
+            }
+            if (loan.witness3 && loan.witness3.trim() !== '') {
+                activeWitnesses.push({
+                    name: loan.witness3.trim(),
+                    village: loan.witness3Village || '',
+                    phone: loan.witness3Phone || ''
+                });
+            }
+
+            // Formatting time payment clause
+            let timePaymentText = '';
+            if (loan.interestPrepaid) {
+                timePaymentText = `ກຳນົດເວລາ: ຜູ້ກູ້ຢືມຕົກລົງຊຳລະເງິນຕົ້ນຄືນທັງໝົດໃຫ້ສຳເລັດພາຍໃນວັນທີ <strong>${formatDateLao(loan.endDate)}</strong> (ສ່ວນດອກເບ້ຍແມ່ນໄດ້ຊຳລະລ່ວງໜ້າແລ້ວ).`;
+            } else {
+                timePaymentText = `ກຳນົດເວລາ: ຜູ້ກູ້ຢືມຕົກລົງຊຳລະເງິນຕົ້ນ ພ້ອມດອກເບ້ຍ ຄືນທັງໝົດໃຫ້ສຳເລັດພາຍໃນວັນທີ <strong>${formatDateLao(loan.endDate)}</strong>.`;
+            }
+
+            // HTML ສ່ວນພະຍານ (ສະແດງເລກລຳດັບ 1. 2. ໃສ່ຊື່ກ່ອນ ແລ້ວໃສ່ເຄື່ອງໝາຍ :, ຂະໜາດ 12pt)
+            let witnessColHtml = `
+                <div class="text-left pl-1" style="font-size: 12pt; font-family: 'Phetsarath OT', 'Noto Sans Lao', sans-serif;">
+                    <p class="font-bold text-center" style="font-size: 12pt;">ພະຍານ</p>
+                    <div class="space-y-1.5 pt-2" style="font-size: 12pt;">
+                        ${activeWitnesses.length > 0 
+                            ? activeWitnesses.map((w, idx) => `
+                                <p class="font-semibold whitespace-nowrap" style="font-size: 12pt;">${idx + 1}. ${getPersonTitle('ຊາຍ', typeof w === 'object' ? w.name : w)}:</p>
+                            `).join('')
+                            : `
+                                <p class="font-semibold" style="font-size: 12pt;">1. ........................................</p>
+                                <p class="font-semibold" style="font-size: 12pt;">2. ........................................</p>
+                            `
+                        }
+                    </div>
+                </div>
+            `;
+
+            let cleanCollateralInfo = loan.collateralInfo || '.....................................................................';
+            cleanCollateralInfo = cleanCollateralInfo
+                .replace(/;\s*ທິດເໜືອຕິດກັບ.*ຕາແມັດ/g, '')
+                .replace(/,\s*ທິດເໜືອຕິດກັບ.*ຕາແມັດ/g, '')
+                .replace(/ທິດເໜືອຕິດກັບ.*ຕາແມັດ/g, '');
+
+            let mainContractHtml = `
+                <div style="font-size: 12pt; font-family: 'Phetsarath OT', 'Noto Sans Lao', sans-serif;">
+                <div class="text-center font-bold mb-1" style="font-weight: bold;">
+                    ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ<br>
+                    ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ
+                </div>
+                <div class="text-center my-2" style="font-size: 16pt; font-weight: bold;">ສັນຍາກູ້ຢືມເງິນ</div>
+                
+                <div class="flex justify-between mb-3 items-end leading-snug">
+                    <div class="space-y-0.5">
+                        <div>${formatProvince(lender.province)}</div>
+                        <div>${formatDistrict(lender.district)}</div>
+                        <div>${formatVillage(lender.village)}</div>
+                    </div>
+                    <div><strong>ເລກທີ່ສັນຍາ:</strong> ${loan.contractId}</div>
+                </div>
+
+                <div class="space-y-2">
+                    <p class="text-center font-bold">ລະຫວ່າງ:</p>
+                    <p><strong>• ຜູ້ໃຫ້ກູ້ (ເຈົ້າໜີ້):</strong> ${lenderTitle}, ອາຍຸ ${lender.age || '...'} ປີ, ຖືບັດປະຈຳຕົວ ເລກທີ ${lender.idCard || '...'}, ຢູ່ເຮືອນເລກທີ ${lender.houseNo || '...'}, ${formatVillage(lender.village)}, ${formatDistrict(lender.district)}, ${formatProvince(lender.province)}, ໂທ: ${lender.phone || '...'}</p>
+                    <p><strong>• ຜູ້ກູ້ຢືມ (ລູກໜີ້):</strong> ${borrowerTitle}, ອາຍຸ ${borrower.age || '...'} ປີ, ຖືບັດປະຈຳຕົວ ເລກທີ ${borrower.idCard || '...'}, ຢູ່ເຮືອນເລກທີ ${borrower.houseNo || '...'}, ${formatVillage(borrower.village)}, ${formatDistrict(borrower.district)}, ${formatProvince(borrower.province)}, ໂທ: ${borrower.phone || '...'}</p>
+                    
+                    ${hasGuarantor ? `<p><strong>• ຜູ້ຄ້ຳປະກັນ:</strong> ${getPersonTitle('ຊາຍ', loan.guarantorName)}, ຂໍ້ມູນ: ${loan.guarantorInfo || '...............................................'}</p>` : ''}
+                    
+                    <p class="pt-1 text-center font-bold">ທຸກຝ່າຍໄດ້ຕົກລົງເຮັດສັນຍາກູ້ຢືມເງິນສະບັບນີ້ ໂດຍມີເນື້ອໃນລາຍລະອຽດດັ່ງລຸ່ມນີ້:</p>
+                    
+                    <p style="text-indent: 1cm;"><strong>ຂໍ້ 1. ຈຳນວນເງິນກູ້ຢືມ</strong><br>
+                    ຜູ້ກູ້ຢືມໄດ້ຕົກລົງກູ້ຢືມເງິນຈາກຜູ້ໃຫ້ກູ້ ເປັນຈຳນວນເງິນທັງໝົດ <strong>${loan.amount.toLocaleString()} ກີບ</strong> (ຕົວໜັງສື: <strong>${loan.amountText}</strong>). ຜູ້ກູ້ຢືມໄດ້ຮັບເງິນຈຳນວນດັ່ງກ່າວຄົບຖ້ວນແລ້ວໃນວັນທີເຮັດສັນຍານີ້.</p>
+                    
+                    <p style="text-indent: 1cm;"><strong>ຂໍ້ 2. ດອກເບ້ຍ, ກຳນົດເວລາຊຳລະ ແລະ ຫຼັກຊັບ</strong><br>
+                    ດອກເບ້ຍ: ຕົກລົງອັດຕາດອກເບ້ຍ <strong>${loan.interestRate > 0 ? loan.interestRate + '% ຕໍ່ ເດືອນ' : 'ບໍ່ມີດອກເບ້ຍ'}</strong>.<br>
+                    ${timePaymentText}<br>
+                    ${hasGuarantor ? `• <strong>ຜູ້ຄ້ຳປະກັນ:</strong> ຜູ້ຄ້ຳປະກັນຕົກລົງຮັບຮອງ ແລະ ຄ້ຳປະກັນການຊຳລະໜີ້ຂອງຜູ້ກູ້ຢືມ. ໃນກໍລະນີທີ່ຜູ້ກູ້ຢືມບໍ່ຊຳລະໜີ້ ຫຼື ຊຳລະບໍ່ຄົບຖ້ວນຕາມກຳນົດເວລາໃນຂໍ້ 2, ຜູ້ຄ້ຳປະກັນຕົກລົງຮັບຜິດຊອບຊຳລະໜີ້ສິນທີ່ຄ້າງທັງໝົດແທນຜູ້ກູ້ຢືມທັນທີ.<br>` : ''}
+                    <strong>ຫຼັກຊັບຄ້ຳປະກັນ :</strong> ເພື່ອເປັນການຮັບປະກັນການຊຳລະໜີ້, ຜູ້ກູ້ຢືມໄດ້ນຳເອົາ ${cleanCollateralInfo} ມາມັດຈຳໄວ້ກັບຜູ້ໃຫ້ກູ້.</p>
+                    
+                    <p style="text-indent: 1cm;"><strong>ຂໍ້ 3. ຜົນບັງຄັບໃຊ້</strong><br>
+                    ຖ້າຜູ້ກູ້ຢືມ ${hasGuarantor ? 'ແລະ ຜູ້ຄ້ຳປະກັນ ' : ''}ບໍ່ຊຳລະເງິນຄືນຕາມກຳນົດເວລາທີ່ລະບຸໃນສັນຍານີ້, ຜູ້ໃຫ້ກູ້ມີສິດດຳເນີນຄະດີຕາມກົດໝາຍ, ຮຽກຮ້ອງໃຫ້ຍຶດ/ຂາຍທອດຕະຫຼາດຫຼັກຊັບຄ້ຳປະກັນ, ແລະ ຮຽກຮ້ອງຄ່າເສຍຫາຍ ຫຼື ຄ່າປັບໄໝທີ່ເກີດຂຶ້ນ.</p>
+                    <p style="text-indent: 1cm;">ສັນຍາສະບັບນີ້ ທຸກຝ່າຍໄດ້ອ່ານ, ເຂົ້າໃຈ ແລະ ເຫັນດີຕາມເນື້ອໃນທຸກປະການ ຈຶ່ງໄດ້ລົງລາຍເຊັນ ຫຼື ຈ້ຳໂປ້ມືໄວ້ເປັນຫຼັກຖານ.</p>
+                </div>
+                </div>
+
+                <!-- ບ່ອນລົງລາຍເຊັນ ຄູ່ສັນຍາ & ພະຍານ ຢູ່ແຖວດຽວກັນ (ພະຍານຢູ່ເບື້ອງຂວາ) -->
+                <div class="grid ${hasGuarantor ? 'grid-cols-4' : 'grid-cols-3'} text-center gap-2 pt-5 items-start">
+                    <div>
+                        <p class="font-bold">ຜູ້ໃຫ້ກູ້</p>
+                        <div class="h-9 flex items-end justify-center"><p class="text-slate-400">.................................</p></div>
+                        <p class="font-semibold pt-1">${lenderTitle}</p>
+                    </div>
+                    <div>
+                        <p class="font-bold">ຜູ້ກູ້ຢືມ</p>
+                        <div class="h-9 flex items-end justify-center"><p class="text-slate-400">.................................</p></div>
+                        <p class="font-semibold pt-1">${borrowerTitle}</p>
+                    </div>
+                    ${hasGuarantor ? `
+                    <div>
+                        <p class="font-bold">ຜູ້ຄ້ຳປະກັນ</p>
+                        <div class="h-9 flex items-end justify-center"><p class="text-slate-400">.................................</p></div>
+                        <p class="font-semibold pt-1">${getPersonTitle('ຊາຍ', loan.guarantorName)}</p>
+                    </div>` : ''}
+                    ${witnessColHtml}
+                </div>
+
+                <!-- ບ່ອນລົງລາຍເຊັນນາຍບ້ານ ຊິດເບື້ອງຂວາ -->
+                <div class="text-right pt-6 space-y-1.5">
+                    <p>ວັນທີ ...... / ...... / .........</p>
+                    <p>ນາຍບ້ານ ${formatVillage(lender.village)}</p>
+                </div>
+            `;
+
+            currentExportFilename = `ສັນຍາກູ້ຢືມເງິນ_${loan.contractId}`;
+            document.getElementById('preview-title-text').innerText = `ສັນຍາກູ້ຢືມເງິນ (${loan.contractId})`;
+            document.getElementById('print-section').innerHTML = mainContractHtml;
+            document.getElementById('print-modal').classList.remove('hidden');
+            document.getElementById('print-modal').classList.add('flex');
+        }
+
+        // 2. ສະແດງ ແລະ ບັນທຶກ "ໃບຍັ້ງຢືນ ມອບກໍາມະສິດທີ່ດິນ / ຫນັງສືຄໍາປະກັນ" (ຕັ້ງ Font 'Phetsarath OT', 'Noto Sans Lao')
+        function openLandCertificateModal(contractId) {
+            const loan = loans.find(l => l.contractId === contractId);
+            if (!loan) return alert('ບໍ່ພົບຂໍ້ມູນສັນຍາ');
+
+            const contact = contacts.find(c => c.id === loan.contactId) || {
+                name: loan.contactName, gender: loan.contactGender, age: '...', idCard: '...', houseNo: '...', village: '...', district: '...', province: '...', phone: loan.contactPhone
+            };
+
+            const myProf = loan.myProfileDetails || myProfiles.find(p => p.isDefault) || myProfiles[0];
+
+            let lender, borrower;
+            if (loan.type === 'LEND') {
+                lender = myProf;
+                borrower = contact;
+            } else {
+                lender = contact;
+                borrower = myProf;
+            }
+
+            const lenderTitle = getPersonTitle(lender.gender, lender.name);
+            const borrowerTitle = getPersonTitle(borrower.gender, borrower.name);
+
+            // ດຶງຂໍ້ມູນພະຍານສະເພາະຊ່ອງທີ່ມີຂໍ້ມູນ
+            const activeWitnesses = [];
+            if (loan.witness1 && loan.witness1.trim() !== '') {
+                activeWitnesses.push({
+                    name: loan.witness1.trim(),
+                    village: loan.witness1Village || '',
+                    phone: loan.witness1Phone || ''
+                });
+            }
+            if (loan.witness2 && loan.witness2.trim() !== '') {
+                activeWitnesses.push({
+                    name: loan.witness2.trim(),
+                    village: loan.witness2Village || '',
+                    phone: loan.witness2Phone || ''
+                });
+            }
+            if (loan.witness3 && loan.witness3.trim() !== '') {
+                activeWitnesses.push({
+                    name: loan.witness3.trim(),
+                    village: loan.witness3Village || '',
+                    phone: loan.witness3Phone || ''
+                });
+            }
+
+            const land = loan.landDetails || {};
+            const startDateParts = (loan.startDate || '').split('-');
+            const dDay = startDateParts[2] || '......';
+            const dMonth = startDateParts[1] || '......';
+            const dYear = startDateParts[0] || '202...';
+
+            let landCertificateHtml = `
+                <div style="font-size: 12pt; font-family: 'Phetsarath OT', 'Noto Sans Lao', sans-serif;">
+                    <div class="text-center font-bold text-sm mb-1" style="font-weight: bold;">
+                        ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ<br>
+                        ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ
+                    </div>
+                    
+                    <div class="flex justify-between mb-3 items-end leading-snug">
+                        <div>
+                            <div>${formatProvince(borrower.province)}</div>
+                            <div>${formatDistrict(borrower.district)}</div>
+                            <div>${formatVillage(borrower.village)}</div>
+                        </div>
+                        <div class="text-right">
+                            <div>ເລກທີ ........ / ........</div>
+                        </div>
+                    </div>
+
+                    <div class="text-center font-bold my-3" style="font-size: 16pt; font-weight: bold;">ໃບຍັ້ງຢືນ ມອບກໍາມະສິດທີ່ດິນ</div>
+
+                    <div class="space-y-2.5 text-justify leading-relaxed">
+                        <p style="text-indent: 1cm;">
+                        ນາຍບ້ານ ${formatVillage(borrower.village)} ${formatDistrict(borrower.district)} ${formatProvince(borrower.province)} ຂໍຢັ້ງຢືນວ່າໃນວັນທີ ${dDay} ເດືອນ ${dMonth} ປີ ${dYear} ໄດ້ມີ ${borrowerTitle} ອາຍຸ ${borrower.age || '...'} ປີ, ສັນຊາດ ລາວ ອາຊີບ ${borrower.occupation || '....................'} ປະຈຸບັນຢູ່ ${formatVillage(borrower.village)} ເຮືອນເລກທີ ${borrower.houseNo || '...'} ພ້ອມດ້ວຍພະຍານ ${activeWitnesses.length > 0 ? activeWitnesses.length : '3'} ທ່ານດັ່ງນີ້:
+                        </p>
+
+                        <div class="pl-3 space-y-1">
+                            ${activeWitnesses.length > 0 
+                                ? activeWitnesses.map((w, idx) => `<p style="text-indent: 1cm;">${idx + 1}. ${getPersonTitle('ຊາຍ', w.name)}, ອາຍຸ .... ປີ, ສັນຊາດ ລາວ, ປະຈຸບັນຢູ່ ${formatVillage(w.village)}, ເບີໂທ: ${w.phone || '....................'}</p>`).join('')
+                                : `<p style="text-indent: 1cm;">1. .................................................. , ອາຍຸ .... ປີ, ສັນຊາດ ລາວ, ປະຈຸບັນຢູ່ບ້ານ .................... , ເບີໂທ....................</p>
+                                   <p style="text-indent: 1cm;">2. .................................................. , ອາຍຸ .... ປີ, ສັນຊາດ ລາວ, ປະຈຸບັນຢູ່ບ້ານ .................... , ເບີໂທ....................</p>
+                                   <p style="text-indent: 1cm;">3. .................................................. , ອາຍຸ .... ປີ, ສັນຊາດ ລາວ, ປະຈຸບັນຢູ່ບ້ານ .................... , ເບີໂທ....................</p>`
+                            }
+                        </div>
+
+                        <p style="text-indent: 1cm;">
+                        ພວກກ່ຽວໄດ້ມາແຈ້ງວ່າຕົນເອງມອບໃບຕາດິນ ເລກທີ ${land.no || '................'}, ຕັ້ງຢູ່ບ້ານ ${formatVillage(land.village)} ເມືອງ ${formatDistrict(land.district)} ແຂວງ ${formatProvince(land.province)} ເຊິ່ງມີຂອບເຂດຊາຍແດນດັ່ງນີ້:
+                        </p>
+
+                        <div class="pl-3 space-y-1">
+                            <p style="text-indent: 1cm;">- ທິດເໜືອຕິດກັບ: ${land.northBorder || '...................................................................'}, ມີ ${land.northSize || '.........................'} ຕາແມັດ</p>
+                            <p style="text-indent: 1cm;">- ທິດໃຕ້ຕິດກັບ: ${land.southBorder || '...................................................................'}, ມີ ${land.southSize || '.........................'} ຕາແມັດ</p>
+                            <p style="text-indent: 1cm;">- ທິດຕາເວັນອອກຕິດກັບ: ${land.eastBorder || '...................................................................'}, ມີ ${land.eastSize || '.........................'} ຕາແມັດ</p>
+                            <p style="text-indent: 1cm;">- ທິດຕາເວັນຕົກຕິດກັບ: ${land.westBorder || '...................................................................'}, ມີ ${land.westSize || '.........................'} ຕາແມັດ</p>
+                            <p class="font-bold" style="text-indent: 1cm;">- ລວມເນື້ອທີ່ທັງໝົດ: ${land.totalSize || '..............................................................'} ຕາແມັດ</p>
+                        </div>
+
+                        <p style="text-indent: 1cm;">
+                        ໃຫ້ເປັນກຳມະສິດແກ່ ${lenderTitle} ອາຍຸ ${lender.age || '...'} ປີ, ສັນຊາດ ລາວ ອາຊີບ ${lender.occupation || '....................'} ປະຈຸບັນຢູ່ ${formatVillage(lender.village)} ເຮືອນເລກທີ ${lender.houseNo || '...'} ${formatDistrict(lender.district)} ${formatProvince(lender.province)}. ເຫດຜົນທີ່ມອບ: ເພື່ອເປັນຫຼັກຊັບຄ້ຳປະກັນການກູ້ຢືມເງິນ ຕາມສັນຍາກູ້ຢືມເງິນ ເລກທີ ${loan.contractId}.
+                        </p>
+
+                        <p style="text-indent: 1cm;">
+                        ຜູ້ກ່ຽວໄດ້ກ່າວຕໍ່ໜ້າພະຍານ ແລະ ອົງການປົກຄອງບ້ານ ຕັ້ງແຕ່ວັນທີ ${dDay} ເດືອນ ${dMonth} ປີ ${dYear} ເປັນຕົ້ນໄປ ດິນດອນນີ້ຕົກເປັນກຳມະສິດຂອງ ${lenderTitle} ໂດຍຖືກຕ້ອງຕາມກົດໝາຍ.
+                        </p>
+
+                        <p style="text-indent: 1cm;">
+                        ດັ່ງນັ້ນ ອົງການປົກຄອງບ້ານ ${formatVillage(borrower.village)} ຈຶ່ງອອກໜັງສືສະບັບນີ້ໄວ້ເປັນຫຼັກຖານ.
+                        </p>
+
+                        <div class="grid grid-cols-3 text-center gap-2 pt-6">
+                            <div>
+                                <p class="font-bold">ເຊັນຜູ້ມອບ</p>
+                                <div class="h-10 flex items-end justify-center"><p class="text-slate-400">.................................</p></div>
+                                <p class="font-semibold pt-1">${borrowerTitle}</p>
+                            </div>
+                            <div>
+                                <p class="font-bold">ເຊັນຜູ້ຮັບ</p>
+                                <div class="h-10 flex items-end justify-center"><p class="text-slate-400">.................................</p></div>
+                                <p class="font-semibold pt-1">${lenderTitle}</p>
+                            </div>
+                            <div>
+                                <p class="font-bold">ພະຍານ</p>
+                                <div class="text-left text-[11pt] pt-2 space-y-1">
+                                    ${activeWitnesses.length > 0 
+                                        ? activeWitnesses.map((w, idx) => `<p>${idx + 1}. .................................</p>`).join('')
+                                        : `<p>1. .................................</p><p>2. .................................</p><p>3. .................................</p>`
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-right pt-4 space-y-0.5">
+                            <p>ທີ່ບ້ານ..................., ວັນທີ ...... / ...... / .........</p>
+                            <p class="font-bold pt-1">ນາຍບ້ານ ${formatVillage(borrower.village)}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            currentExportFilename = `ໃບຍັ້ງຢືນ_ມອບກຳມະສິດທີ່ດິນ_${loan.contractId}`;
+            document.getElementById('preview-title-text').innerText = `ໃບຍັ້ງຢືນ ມອບກໍາມະສິດທີ່ດິນ (${loan.contractId})`;
+            document.getElementById('print-section').innerHTML = landCertificateHtml;
+            document.getElementById('print-modal').classList.remove('hidden');
+            document.getElementById('print-modal').classList.add('flex');
+        }
+
+        // Google Sheets Sync
+        function saveGSheetUrl() {
+            gsheetUrl = document.getElementById('gsheet-url').value.trim();
+            localStorage.setItem('sys_gsheet_url', gsheetUrl);
+            alert('ບັນທຶກ Google Sheets URL ສຳເລັດ!');
+            location.reload();
+        }
+
+        async function syncToGSheets() {
+            if (!gsheetUrl) return;
+            try {
+                document.getElementById('sync-status').innerText = 'Syncing...';
+                await fetch(gsheetUrl, {
+                    method: 'POST', mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contacts, loans, myProfiles })
+                });
+                document.getElementById('sync-status').innerText = 'Synced to Google Sheets';
+            } catch (err) { console.error(err); }
+        }
+
+        async function syncFromGSheets() {
+            if (!gsheetUrl) return alert('ກະລຸນາກຳນົດ Google Sheets URL ກ່ອນ');
+            try {
+                const res = await fetch(gsheetUrl);
+                const data = await res.json();
+                if (data.contacts) contacts = data.contacts;
+                if (data.loans) loans = data.loans;
+                if (data.myProfiles) myProfiles = data.myProfiles;
+
+                localStorage.setItem('sys_contacts', JSON.stringify(contacts));
+                localStorage.setItem('sys_loans', JSON.stringify(loans));
+                localStorage.setItem('sys_my_profiles', JSON.stringify(myProfiles));
+                alert('ດຶງຂໍ້ມູນຈາກ Google Sheets ສຳເລັດແລ້ວ!');
+                location.reload();
+            } catch (err) { alert('ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນ'); }
+        }
+
+        // ADD OR UPDATE CONTACT
         document.getElementById('contact-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const gender = document.querySelector('input[name="c-gender"]:checked').value;
@@ -739,61 +1848,173 @@
 
             if (editingContactId) {
                 const idx = contacts.findIndex(x => x.id === editingContactId);
-                if (idx !== -1) contacts[idx] = { ...contacts[idx], gender, name, age, idCard, houseNo, village, district, province, phone };
+                if (idx !== -1) {
+                    contacts[idx] = { ...contacts[idx], gender, name, age, idCard, houseNo, village, district, province, phone };
+                    localStorage.setItem('sys_contacts', JSON.stringify(contacts));
+                    syncToGSheets();
+                    alert('ອັບເດດຂໍ້ມູນຄູ່ສັນຍາສຳເລັດ!');
+                }
             } else {
-                contacts.push({ id: 'CT-' + Date.now().toString().slice(-4), gender, name, age, idCard, houseNo, village, district, province, phone });
+                const saveObj = {
+                    id: 'CT-' + Date.now().toString().slice(-4),
+                    gender, name, age, idCard, houseNo, village, district, province, phone
+                };
+                contacts.push(saveObj);
+                localStorage.setItem('sys_contacts', JSON.stringify(contacts));
+                syncToGSheets();
+                alert('ບັນທຶກຂໍ້ມູນຄູ່ສັນຍາສຳເລັດ!');
             }
 
-            syncToFirebase();
             resetContactForm();
+            renderContacts();
         });
+
+        // EDIT CONTACT
+        function editContact(id) {
+            const c = contacts.find(x => x.id === id);
+            if (!c) return;
+
+            editingContactId = c.id;
+            toggleContactForm(true);
+
+            const gRadio = document.querySelector(`input[name="c-gender"][value="${c.gender || 'ຊາຍ'}"]`);
+            if (gRadio) gRadio.checked = true;
+
+            document.getElementById('form-contact-title').innerText = `✏️ ແກ້ໄຂຂໍ້ມູນ: ${c.name}`;
+            document.getElementById('c-name').value = c.name || '';
+            document.getElementById('c-age').value = c.age === '-' ? '' : c.age || '';
+            document.getElementById('c-idcard').value = c.idCard === '-' ? '' : c.idCard || '';
+            document.getElementById('c-houseno').value = c.houseNo === '-' ? '' : c.houseNo || '';
+            document.getElementById('c-village').value = c.village === '-' ? '' : c.village || '';
+            document.getElementById('c-district').value = c.district === '-' ? '' : c.district || '';
+            document.getElementById('c-province').value = c.province === '-' ? '' : c.province || '';
+            document.getElementById('c-phone').value = c.phone || '';
+
+            document.getElementById('btn-submit-contact').innerText = '💾 ອັບເດດຂໍ້ມູນຄູ່ສັນຍາ';
+            document.getElementById('btn-cancel-edit').classList.remove('hidden');
+
+            document.getElementById('contact-form-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            document.getElementById('c-name').focus();
+        }
 
         function resetContactForm() {
             editingContactId = null;
             document.getElementById('contact-form').reset();
+            document.getElementById('form-contact-title').innerText = '➕ ເພີ່ມຂໍ້ມູນຄູ່ສັນຍາໃໝ່';
+            document.getElementById('btn-submit-contact').innerText = '💾 ບັນທຶກຂໍ້ມູນຄູ່ສັນຍາ';
+            document.getElementById('btn-cancel-edit').classList.add('hidden');
             toggleContactForm(false);
         }
 
+        // DELETE CONTACT
         function deleteContact(id) {
-            if (confirm(`⚠️ ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລົບຄູ່ສັນຍາ?`)) {
+            const c = contacts.find(x => x.id === id);
+            if (!c) return;
+
+            if (confirm(`⚠️ ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລົບຄູ່ສັນຍາ "${c.name}"?`)) {
                 contacts = contacts.filter(x => x.id !== id);
-                syncToFirebase();
+                localStorage.setItem('sys_contacts', JSON.stringify(contacts));
+                syncToGSheets();
+                resetContactForm();
+                renderContacts();
+                renderDashboard();
+                alert('ລົບຄູ່ສັນຍາເລຍບຮ້ອຍແລ້ວ!');
             }
         }
 
+        // RENDER CONTACTS LIST TABLE
         function renderContacts() {
             const countBadge = document.getElementById('contact-count-badge');
             if (countBadge) countBadge.innerText = `${contacts.length} ຄົນ`;
 
+            function getContactPriority(cId) {
+                const userLoans = loans.filter(l => l.contactId === cId);
+                const hasBorrow = userLoans.some(l => (l.type || 'LEND').toUpperCase() === 'BORROW');
+                const hasLend = userLoans.some(l => (l.type || 'LEND').toUpperCase() === 'LEND');
+
+                if (hasBorrow) return 1;
+                if (hasLend) return 2;
+                return 3;
+            }
+
+            const sortedContacts = [...contacts].sort((a, b) => {
+                const pA = getContactPriority(a.id);
+                const pB = getContactPriority(b.id);
+                return pA - pB;
+            });
+
             const tbody = document.getElementById('contact-list-body');
             if (!tbody) return;
-            if (contacts.length === 0) {
+
+            if (sortedContacts.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">ບໍ່ມີຂໍ້ມູນຄູ່ສັນຍາ</td></tr>`;
                 return;
             }
 
-            tbody.innerHTML = contacts.map(c => `
-                <tr class="hover:bg-indigo-50/50 border-b text-xs">
-                    <td class="p-3 font-bold text-slate-800">${getPersonTitle(c.gender, c.name)}</td>
-                    <td class="p-3 font-mono font-bold">${c.phone}</td>
-                    <td class="p-3 text-center"><span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded font-bold">${loans.filter(l => l.contactId === c.id).length}</span></td>
-                    <td class="p-2 text-center space-x-1">
-                        <button onclick="openCreateLoanModal('${c.id}')" class="bg-emerald-50 text-emerald-700 px-2 py-1.5 rounded font-semibold text-[11px]">📝 ສ້າງສັນຍາ</button>
-                        <button onclick="deleteContact('${c.id}')" class="bg-rose-50 text-rose-700 px-2 py-1.5 rounded font-semibold text-[11px]">🗑️ ລົບ</button>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = sortedContacts.map(c => {
+                const userLoans = loans.filter(l => l.contactId === c.id);
+                const priority = getContactPriority(c.id);
+
+                let badge = '<span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold">ບໍ່ມີສັນຍາ</span>';
+                if (priority === 1) {
+                    badge = '<span class="text-[10px] bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-bold">🔴 ຢືມມາ</span>';
+                } else if (priority === 2) {
+                    badge = '<span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">🟢 ລູກໜີ້</span>';
+                }
+
+                return `
+                    <tr class="hover:bg-indigo-50/50 transition border-b text-xs">
+                        <td class="p-3">
+                            <div class="font-bold text-slate-800 text-xs flex items-center space-x-1.5">
+                                <span class="hover:text-indigo-600 cursor-pointer" onclick="showContactDetails('${c.id}')">${getPersonTitle(c.gender, c.name)}</span>
+                                ${badge}
+                            </div>
+                            <div class="text-[11px] text-slate-400 mt-0.5">${formatVillage(c.village)}, ${formatDistrict(c.district)}</div>
+                        </td>
+                        <td class="p-3 font-mono font-bold text-slate-700">${c.phone}</td>
+                        <td class="p-3 text-center">
+                            <span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded font-bold text-[11px]">${userLoans.length}</span>
+                        </td>
+                        <td class="p-2 text-center">
+                            <div class="flex items-center justify-center space-x-1">
+                                <button onclick="openCreateLoanModal('${c.id}')" title="ສ້າງສັນຍາ" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2 py-1.5 rounded font-semibold text-[11px] transition">
+                                    📝 ສ້າງສັນຍາ
+                                </button>
+                                <button onclick="showContactDetails('${c.id}')" title="ເບິ່ງປະວັດສັນຍາ" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-1.5 rounded font-semibold text-[11px] transition">
+                                    📜 ປະວັດ
+                                </button>
+                                <button onclick="editContact('${c.id}')" title="ແກ້ໄຂ" class="bg-amber-50 hover:bg-amber-100 text-amber-700 px-2 py-1.5 rounded font-semibold text-[11px] transition">
+                                    ✏️
+                                </button>
+                                <button onclick="deleteContact('${c.id}')" title="ລົບ" class="bg-rose-50 hover:bg-rose-100 text-rose-700 px-2 py-1.5 rounded font-semibold text-[11px] transition">
+                                    🗑️
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function populateDropdowns() {
-            document.getElementById('l-contact-select').innerHTML = '<option value="">-- ເລືອກຄູ່ສັນຍາ --</option>' + contacts.map(c => `<option value="${c.id}">${getPersonTitle(c.gender, c.name)} (${c.phone})</option>`).join('');
-            document.getElementById('l-myprofile-select').innerHTML = myProfiles.map(p => `<option value="${p.id}">${getPersonTitle(p.gender, p.name)} (${p.phone})</option>`).join('');
-            document.getElementById('p-loan-select').innerHTML = '<option value="">-- ເລືອກສັນຍາ --</option>' + loans.map(l => `<option value="${l.contractId}">${l.contractId} - ${l.contactName}</option>`).join('');
+            const select = document.getElementById('l-contact-select');
+            select.innerHTML = '<option value="">-- ເລືອກຄູ່ສັນຍາ --</option>' + contacts.map(c => `<option value="${c.id}">${getPersonTitle(c.gender, c.name)} (${c.phone})</option>`).join('');
+
+            const mySelect = document.getElementById('l-myprofile-select');
+            mySelect.innerHTML = myProfiles.map(p => `<option value="${p.id}" ${p.isDefault ? 'selected' : ''}>${getPersonTitle(p.gender, p.name)} (${p.phone})</option>`).join('');
+
+            const pSelect = document.getElementById('p-loan-select');
+            pSelect.innerHTML = '<option value="">-- ເລືອກສັນຍາ --</option>' + loans.map(l => `<option value="${l.contractId}">${l.contractId} - ${l.contactName}</option>`).join('');
         }
 
         function saveLoanContract() {
+            const type = document.querySelector('input[name="loan-type"]:checked').value;
+            const myProfileId = document.getElementById('l-myprofile-select').value;
             const contactId = document.getElementById('l-contact-select').value;
+
+            const myProf = myProfiles.find(p => p.id === myProfileId) || myProfiles.find(p => p.isDefault) || myProfiles[0];
             const contact = contacts.find(c => c.id === contactId);
+
             if (!contact) return alert('ກະລຸນາເລືອກຄູ່ສັນຍາ');
 
             const amount = parseFloat(document.getElementById('l-amount').value) || 0;
@@ -802,10 +2023,79 @@
             const endDate = new Date(startDate);
             endDate.setMonth(endDate.getMonth() + months);
 
-            loans.push({
+            // ດຶງ ແລະ ຈັດຮູບແບບຂໍ້ມູນ ຫຼັກຊັບຄ້ຳປະກັນ ແຕ່ລະປະເພດ
+            let collateralParts = [];
+            let landObj = null;
+
+            // 1. ໃບຕາດິນ
+            if (document.getElementById('chk-collateral-land').checked) {
+                landObj = {
+                    no: document.getElementById('land-no').value.trim(),
+                    village: document.getElementById('land-village').value.trim(),
+                    district: document.getElementById('land-district').value.trim(),
+                    province: document.getElementById('land-province').value.trim(),
+                    northBorder: document.getElementById('land-north-border').value.trim(),
+                    northSize: document.getElementById('land-north-size').value.trim(),
+                    southBorder: document.getElementById('land-south-border').value.trim(),
+                    southSize: document.getElementById('land-south-size').value.trim(),
+                    eastBorder: document.getElementById('land-east-border').value.trim(),
+                    eastSize: document.getElementById('land-east-size').value.trim(),
+                    westBorder: document.getElementById('land-west-border').value.trim(),
+                    westSize: document.getElementById('land-west-size').value.trim(),
+                    totalSize: document.getElementById('land-total-size').value.trim()
+                };
+
+                const landNo = landObj.no || '......';
+                const landV = landObj.village || '......';
+                const landD = landObj.district || '......';
+                const landP = landObj.province || '......';
+                const nB = landObj.northBorder || '......';
+                const nS = landObj.northSize || '......';
+                const sB = landObj.southBorder || '......';
+                const sS = landObj.southSize || '......';
+                const eB = landObj.eastBorder || '......';
+                const eS = landObj.eastSize || '......';
+                const wB = landObj.westBorder || '......';
+                const wS = landObj.westSize || '......';
+                const totS = landObj.totalSize || '......';
+
+                collateralParts.push(`ໃບຕາດິນ ເລກທີ ${landNo}, ຕັ້ງຢູ່ບ້ານ ${landV}, ເມືອງ ${landD}, ແຂວງ ${landP}`);
+            }
+
+            // 2. ໃບທະບຽນລົດ
+            if (document.getElementById('chk-collateral-vehicle').checked) {
+                const brand = document.getElementById('veh-brand').value.trim() || '......';
+                const plate = document.getElementById('veh-plate').value.trim() || '......';
+                const engine = document.getElementById('veh-engine').value.trim() || '......';
+                const chassis = document.getElementById('veh-chassis').value.trim() || '......';
+                const color = document.getElementById('veh-color').value.trim() || '......';
+                const docNo = document.getElementById('veh-doc-no').value.trim() || '......';
+
+                collateralParts.push(`ໃບທະບຽນລົດ ຍີ່ຫໍ້ ${brand}, ໝາຍເລກທະບຽນ ${plate}, ເລກຈັກ ${engine}, ເລກຖັງ ${chassis}, ສີ ${color}, ເລກທີໃບທະບຽນລົດ ${docNo}`);
+            }
+
+            // 3. ຄຳ
+            if (document.getElementById('chk-collateral-gold').checked) {
+                const gType = document.getElementById('gold-type').value || 'ຄຳຮູບປະພັນ';
+                const gWeight = document.getElementById('gold-weight').value.trim() || '......';
+                const gPurity = document.getElementById('gold-purity').value.trim() || '......';
+                const gStyle = document.getElementById('gold-style').value.trim() || '......';
+
+                collateralParts.push(`ຄຳ (ປະເພດ: ${gType}, ນ້ຳໜັກ: ${gWeight}, ເປີເຊັນຄຳ: ${gPurity}, ລັກສະນະ: ${gStyle})`);
+            }
+
+            // 4. ອື່ນໆ
+            if (document.getElementById('chk-collateral-other').checked) {
+                const otherDesc = document.getElementById('other-collateral-desc').value.trim() || '......';
+                collateralParts.push(`ອື່ນໆ: ${otherDesc}`);
+            }
+
+            const collateralInfoStr = collateralParts.length > 0 ? collateralParts.join('; ') : '.....................................................................';
+
+            const newLoan = {
                 contractId: 'LN-' + Date.now().toString().slice(-5),
-                type: document.querySelector('input[name="loan-type"]:checked').value,
-                myProfileDetails: myProfiles[0],
+                type,
+                myProfileDetails: myProf,
                 contactId: contact.id,
                 contactGender: contact.gender,
                 contactName: contact.name,
@@ -816,14 +2106,35 @@
                 months,
                 startDate: startDate.toISOString().split('T')[0],
                 endDate: endDate.toISOString().split('T')[0],
-                paidAmount: 0, paidInterest: 0, paidPrincipal: 0,
+                guarantorName: document.getElementById('l-guarantor-name').value,
+                guarantorInfo: document.getElementById('l-guarantor-info').value,
+                collateralInfo: collateralInfoStr,
+                landDetails: landObj,
+                witness1: document.getElementById('l-witness1').value,
+                witness1Village: document.getElementById('l-witness1-village').value,
+                witness1Phone: document.getElementById('l-witness1-phone').value,
+                witness2: document.getElementById('l-witness2').value,
+                witness2Village: document.getElementById('l-witness2-village').value,
+                witness2Phone: document.getElementById('l-witness2-phone').value,
+                witness3: document.getElementById('l-witness3').value,
+                witness3Village: document.getElementById('l-witness3-village').value,
+                witness3Phone: document.getElementById('l-witness3-phone').value,
+                paidAmount: 0,
+                paidInterest: 0,
+                paidPrincipal: 0,
+                interestPrepaid: document.getElementById('l-interest-prepaid').checked,
                 status: 'ກຳລັງຜ່ອນ'
-            });
+            };
 
-            syncToFirebase();
+            loans.push(newLoan);
+            localStorage.setItem('sys_loans', JSON.stringify(loans));
+            syncToGSheets();
             closeCreateLoanModal();
+            alert('ສ້າງສັນຍາກູ້ຢືມສຳເລັດ!');
+            switchTab('dashboard');
         }
 
+        // CONFIRM PAYMENT WITH INTEREST & PRINCIPAL SPLIT
         function confirmPayment() {
             const loanId = document.getElementById('p-loan-select').value;
             const interestAmt = parseFloat(document.getElementById('p-interest-amount').value) || 0;
@@ -835,14 +2146,23 @@
                 loan.paidPrincipal = (parseFloat(loan.paidPrincipal) || 0) + principalAmt;
                 loan.paidAmount = loan.paidInterest + loan.paidPrincipal;
 
-                syncToFirebase();
+                localStorage.setItem('sys_loans', JSON.stringify(loans));
+                syncToGSheets();
                 closePaymentModal();
+                alert('ບັນທຶກການຊຳລະ (ດອກເບ້ຍ ແລະ ເງິນຕົ້ນ) ສຳເລັດ!');
+                
+                document.getElementById('p-interest-amount').value = '';
+                document.getElementById('p-principal-amount').value = '';
+
+                switchTab('dashboard');
+            } else {
+                alert('ກະລຸນາເລືອກສັນຍາ ແລະ ປ້ອນຈຳນວນເງິນຊຳລະດອກເບ້ຍ ຫຼື ເງິນຕົ້ນ');
             }
         }
 
-        function triggerBrowserPrint() { window.print(); }
-        function exportToImage() { alert('ຟັງຊັນບັນທຶກຮູບພາບ'); }
-        function exportToWord() { alert('ຟັງຊັນບັນທຶກ Word'); }
+        // Init
+        renderMyProfiles();
+        renderDashboard();
     </script>
 </body>
 </html>
